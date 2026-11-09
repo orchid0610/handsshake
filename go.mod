@@ -1,4 +1,4 @@
-module sshgui
+module handsshake
 
 go 1.26.0
 

@@ -15,7 +15,7 @@ func Run(assets embed.FS) error {
 		return err
 	}
 	return wails.Run(&options.App{
-		Title:            "SSH Client",
+		Title:            "HandSSHake",
 		Width:            1180,
 		Height:           760,
 		MinWidth:         900,

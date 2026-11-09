@@ -84,7 +84,7 @@ type envelope struct {
 // slot also binds the KDF settings and salt, so weakening them breaks unlock
 // instead of silently lowering the protection.
 func (e *envelope) aad(purpose string) []byte {
-	s := fmt.Sprintf("sshgui-vault|v%d|%s", e.Version, purpose)
+	s := fmt.Sprintf("handsshake-vault|v%d|%s", e.Version, purpose)
 	if purpose == purposePassword {
 		s += fmt.Sprintf("|%s|t=%d|m=%d|p=%d|", e.KDF, e.Params.Time, e.Params.Memory, e.Params.Threads)
 		return append([]byte(s), e.PwSalt...)
@@ -102,13 +102,13 @@ type Vault struct {
 
 func New(path string) *Vault { return &Vault{path: path} }
 
-// DefaultPath is ~/.config/sshgui/vault.json on Linux.
+// DefaultPath is ~/.config/handsshake/vault.json on Linux.
 func DefaultPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	dir = filepath.Join(dir, "sshgui")
+	dir = filepath.Join(dir, "handsshake")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}

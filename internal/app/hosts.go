@@ -11,7 +11,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"sshgui/internal/vault"
+	"handsshake/internal/vault"
 )
 
 // HostInfo is what the UI sees: everything EXCEPT the secrets, plus flags

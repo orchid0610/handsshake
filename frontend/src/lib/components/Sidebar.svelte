@@ -43,7 +43,7 @@
   <div class="head">
     <div class="brand">
       <span class="mark"><Icon name="terminal" size={15} /></span>
-      <span>SSH Client</span>
+      <span>HandSSHake</span>
     </div>
     <button class="btn btn-primary add" onclick={() => app.openEditor()} title="Add host">
       <Icon name="plus" size={15} /> New

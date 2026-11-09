@@ -4,7 +4,7 @@ import (
 	"embed"
 	"log"
 
-	"sshgui/internal/app"
+	"handsshake/internal/app"
 )
 
 //go:embed all:frontend/dist

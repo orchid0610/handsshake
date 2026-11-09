@@ -1,16 +1,20 @@
-# README
+# HandSSHake
 
-## About
+A clean, fast SSH client for the desktop. Your hosts and credentials live in
+an encrypted local vault, and nothing leaves your machine.
 
-This is the official Wails Svelte-TS template.
+## Features
 
-## Live Development
+- Tabbed SSH terminals (xterm.js)
+- Encrypted vault (Argon2id + XChaCha20-Poly1305) with a recovery key
+- Password and private-key authentication, including passphrase-protected keys
+- Host key verification with a trust-on-first-use prompt
+- Search hosts with Ctrl+K
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+## Development
 
-## Building
+Requires Go, Node.js, the Wails v2 CLI, and (on Ubuntu) `libwebkit2gtk-4.1-dev`.
 
-To build a redistributable, production mode package, use `wails build`.
+    make dev      # run with live reload
+    make test     # run the Go tests
+    make build    # build a release binary into build/bin

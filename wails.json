@@ -1,11 +1,18 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "sshgui",
-  "outputfilename": "sshgui",
+  "name": "handsshake",
+  "outputfilename": "handsshake",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "HandSSHake",
+    "productName": "HandSSHake",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © 2026",
+    "comments": "A clean, fast SSH client"
+  },
   "author": {
     "name": "Orchid",
     "email": "orchid06102@gmail.com"

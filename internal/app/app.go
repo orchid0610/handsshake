@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"sshgui/internal/sshconn"
-	"sshgui/internal/vault"
+	"handsshake/internal/sshconn"
+	"handsshake/internal/vault"
 )
 
 type App struct {

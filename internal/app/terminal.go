@@ -8,8 +8,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"sshgui/internal/sshconn"
-	"sshgui/internal/vault"
+	"handsshake/internal/sshconn"
+	"handsshake/internal/vault"
 )
 
 type session struct {
