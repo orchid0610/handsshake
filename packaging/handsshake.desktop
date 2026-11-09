@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=HandSSHake
+Comment=A clean, fast SSH client
+Exec=handsshake
+Icon=handsshake
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=handsshake

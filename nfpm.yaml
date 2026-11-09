@@ -1,0 +1,23 @@
+name: handsshake
+arch: amd64
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: "Orchid <orchid0610@gmail.com>"
+description: |
+  A clean, fast SSH client with an encrypted vault.
+homepage: https://github.com/orchid0610/handsshake
+license: MIT
+depends:
+  - libgtk-3-0t64 | libgtk-3-0
+  - libwebkit2gtk-4.1-0
+contents:
+  - src: build/bin/handsshake
+    dst: /usr/bin/handsshake
+    file_info:
+      mode: 0755
+  - src: packaging/handsshake.desktop
+    dst: /usr/share/applications/handsshake.desktop
+  - src: build/appicon.png
+    dst: /usr/share/pixmaps/handsshake.png
