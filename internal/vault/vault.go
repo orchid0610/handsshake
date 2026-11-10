@@ -50,6 +50,8 @@ type Host struct {
 	KeyPath    string   `json:"keyPath,omitempty"`    // key stored on disk...
 	PrivateKey string   `json:"privateKey,omitempty"` // ...or imported into the vault
 	Passphrase string   `json:"passphrase,omitempty"`
+	OS         string   `json:"os,omitempty"`     // detected remote OS id, e.g. "ubuntu"
+	OSLike     string   `json:"osLike,omitempty"` // related families, e.g. "debian"
 }
 
 type data struct {

@@ -64,6 +64,7 @@ func (a *App) Connect(id, hostID string, cols, rows int) error {
 	a.mu.Unlock()
 
 	go a.pump(id, shell)
+	go a.detectOS(id, hostID, conn)
 	return nil
 }
 
@@ -162,4 +163,22 @@ func (a *App) AnswerHostKey(promptID string, trust bool) {
 		default:
 		}
 	}
+}
+
+
+// detectOS finds out what the server runs, tells the UI, and remembers it
+// on the host so the sidebar can show the logo next time.
+func (a *App) detectOS(id, hostID string, conn *sshconn.Conn) {
+	info, err := conn.DetectOS()
+	if err != nil || (info.ID == "" && info.Name == "") {
+		return // restricted shells, routers and the like just keep a generic icon
+	}
+	runtime.EventsEmit(a.ctx, "term:os:"+id, info)
+
+	h, err := a.vault.Get(hostID)
+	if err != nil || (h.OS == info.ID && h.OSLike == info.Like) {
+		return
+	}
+	h.OS, h.OSLike = info.ID, info.Like
+	_, _ = a.vault.Put(h) // best effort: the vault may have been locked meanwhile
 }

@@ -10,6 +10,8 @@ export interface HostInfo {
   hasPassword: boolean
   keyInVault: boolean
   hasPassphrase: boolean
+  os: string
+  osLike: string
 }
 
 export interface HostInput {

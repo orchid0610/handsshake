@@ -10,6 +10,8 @@ export namespace app {
 	    hasPassword: boolean;
 	    keyInVault: boolean;
 	    hasPassphrase: boolean;
+	    os: string;
+	    osLike: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HostInfo(source);
@@ -26,6 +28,8 @@ export namespace app {
 	        this.hasPassword = source["hasPassword"];
 	        this.keyInVault = source["keyInVault"];
 	        this.hasPassphrase = source["hasPassphrase"];
+	        this.os = source["os"];
+	        this.osLike = source["osLike"];
 	    }
 	}
 	export class HostInput {
