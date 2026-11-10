@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
+	"handsshake/internal/fileutil"
 )
 
 var (
@@ -409,7 +410,7 @@ func (v *Vault) save() error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(v.path, out)
+	return fileutil.WriteAtomic(v.path, out, 0o600)
 }
 
 // ---- crypto helpers ----
@@ -474,31 +475,6 @@ func parseRecoveryKey(s string) ([]byte, error) {
 }
 
 // ---- file + misc helpers ----
-
-// writeAtomic writes to a temp file and renames it over the target, so a
-// crash mid-write can never leave a half-written (lost) vault.
-func writeAtomic(path string, b []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".vault-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) // harmless after a successful rename
-	if _, err := tmp.Write(b); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp.Name(), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
-}
 
 func randomBytes(n int) ([]byte, error) {
 	b := make([]byte, n)

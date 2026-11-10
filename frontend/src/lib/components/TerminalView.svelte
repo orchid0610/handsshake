@@ -5,34 +5,11 @@
   import "@xterm/xterm/css/xterm.css";
   import { api, events, errText } from "../api";
   import { app } from "../stores/app.svelte";
+  import { settings } from "../stores/settings.svelte";
   import { tabs, type Tab } from "../stores/tabs.svelte";
   import Icon from "./Icon.svelte";
 
   let { tab, active }: { tab: Tab; active: boolean } = $props();
-
-  const THEME = {
-    background: "#0d0f14",
-    foreground: "#c9d1e0",
-    cursor: "#7aa2f7",
-    cursorAccent: "#0d0f14",
-    selectionBackground: "rgba(122, 162, 247, 0.28)",
-    black: "#1b1f2b",
-    red: "#f7768e",
-    green: "#9ece6a",
-    yellow: "#e0af68",
-    blue: "#7aa2f7",
-    magenta: "#bb9af7",
-    cyan: "#7dcfff",
-    white: "#a9b1d6",
-    brightBlack: "#414868",
-    brightRed: "#ff899d",
-    brightGreen: "#b9f27c",
-    brightYellow: "#ffc777",
-    brightBlue: "#9ab8ff",
-    brightMagenta: "#c9afff",
-    brightCyan: "#a4daff",
-    brightWhite: "#d5dbf0",
-  };
 
   let el: HTMLDivElement;
   let term: Terminal | undefined;
@@ -94,13 +71,15 @@
     await document.fonts.load('13.5px "JetBrains Mono"').catch(() => {});
     if (disposed) return;
 
+    const s = settings.value;
     const t = new Terminal({
-      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
-      fontSize: 13.5,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      scrollback: 5000,
-      theme: THEME,
+      fontFamily: settings.fontStack,
+      fontSize: s.fontSize,
+      lineHeight: s.lineHeight,
+      cursorStyle: s.cursorStyle,
+      cursorBlink: s.cursorBlink,
+      scrollback: s.scrollback,
+      theme: settings.theme.colors,
     });
     const f = new FitAddon();
     t.loadAddon(f);
@@ -138,6 +117,27 @@
     ro.observe(el);
 
     start();
+  });
+
+  // Apply settings changes to this terminal live.
+  $effect(() => {
+    // Read everything BEFORE the early return, so Svelte tracks it even on the first run.
+    const { fontSize, lineHeight, cursorStyle, cursorBlink, scrollback } =
+      settings.value;
+    const theme = settings.theme.colors;
+    const family = settings.fontStack;
+    if (!term) return;
+
+    term.options.theme = theme;
+    term.options.fontFamily = family;
+    term.options.fontSize = fontSize;
+    term.options.lineHeight = lineHeight;
+    term.options.cursorStyle = cursorStyle;
+    term.options.cursorBlink = cursorBlink;
+    term.options.scrollback = scrollback;
+    tick().then(() => {
+      if (active) fit?.fit();
+    }); // font changes alter how many columns fit
   });
 
   // When this tab becomes the visible one, re-measure it and focus it.
@@ -220,7 +220,7 @@
     padding: 30px;
     text-align: center;
     color: var(--text-dim);
-    background: rgba(13, 15, 20, 0.92);
+    background: color-mix(in srgb, var(--term-bg) 92%, transparent);
   }
   .overlay strong {
     color: var(--text);

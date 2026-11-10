@@ -26,3 +26,15 @@ export interface HostInput {
   passphrase: string
   clearPassphrase: boolean
 }
+
+
+export interface Settings {
+  theme: string
+  fontFamily: 'jetbrains-mono' | 'system'
+  fontSize: number
+  lineHeight: number
+  cursorStyle: 'block' | 'bar' | 'underline'
+  cursorBlink: boolean
+  scrollback: number
+  autoLockMinutes: number
+}

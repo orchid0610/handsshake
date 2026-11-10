@@ -2,27 +2,73 @@
   import { onMount } from "svelte";
   import { app } from "./lib/stores/app.svelte";
   import { tabs } from "./lib/stores/tabs.svelte";
+  import { settings } from "./lib/stores/settings.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import TerminalView from "./lib/components/TerminalView.svelte";
   import HostForm from "./lib/components/HostForm.svelte";
   import HostKeyDialog from "./lib/components/HostKeyDialog.svelte";
   import ConfirmDialog from "./lib/components/ConfirmDialog.svelte";
+  import SettingsDialog from "./lib/components/SettingsDialog.svelte";
   import Unlock from "./lib/components/Unlock.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
   import Icon from "./lib/components/Icon.svelte";
 
-  onMount(() => app.init());
+  onMount(() => {
+    settings.load(); // settings hold no secrets, so this works while the vault is locked
+    app.init();
+  });
+
+  // The terminal theme also colours the area around the terminals.
+  $effect(() => {
+    document.documentElement.style.setProperty(
+      "--term-bg",
+      settings.theme.colors.background ?? "#0d0f14",
+    );
+  });
+
+  // Auto-lock: runs only while the vault is open and a timeout is set.
+  $effect(() => {
+    const minutes = settings.value.autoLockMinutes;
+    if (minutes <= 0 || app.gated) return;
+
+    const limit = minutes * 60_000;
+    let last = Date.now();
+    const bump = () => {
+      last = Date.now();
+    };
+    const kinds = ["keydown", "mousedown", "mousemove", "wheel", "touchstart"];
+    kinds.forEach((k) => window.addEventListener(k, bump, true));
+
+    // Checking the clock (not a countdown) also locks right after the laptop wakes from sleep.
+    const timer = setInterval(() => {
+      if (Date.now() - last >= limit) {
+        app.lock();
+        app.toast("info", "Vault locked after inactivity");
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(timer);
+      kinds.forEach((k) => window.removeEventListener(k, bump, true));
+    };
+  });
 
   function onKey(e: KeyboardEvent) {
     if (e.ctrlKey && e.key === "Tab") {
       e.preventDefault();
       e.stopPropagation();
       tabs.cycle(e.shiftKey ? -1 : 1);
+    } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!app.gated) app.settingsOpen = !app.settingsOpen;
     }
   }
 </script>
+
 <svelte:window onkeydowncapture={onKey} />
+
 <div class="shell">
   <Sidebar />
   <main>
@@ -46,6 +92,7 @@
 </div>
 
 {#if app.editor.open}<HostForm />{/if}
+{#if app.settingsOpen}<SettingsDialog />{/if}
 <HostKeyDialog />
 <ConfirmDialog />
 {#if app.gated}<Unlock />{/if}

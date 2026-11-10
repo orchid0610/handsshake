@@ -65,3 +65,34 @@ export namespace app {
 
 }
 
+export namespace settings {
+	
+	export class Settings {
+	    theme: string;
+	    fontFamily: string;
+	    fontSize: number;
+	    lineHeight: number;
+	    cursorStyle: string;
+	    cursorBlink: boolean;
+	    scrollback: number;
+	    autoLockMinutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.fontFamily = source["fontFamily"];
+	        this.fontSize = source["fontSize"];
+	        this.lineHeight = source["lineHeight"];
+	        this.cursorStyle = source["cursorStyle"];
+	        this.cursorBlink = source["cursorBlink"];
+	        this.scrollback = source["scrollback"];
+	        this.autoLockMinutes = source["autoLockMinutes"];
+	    }
+	}
+
+}
+

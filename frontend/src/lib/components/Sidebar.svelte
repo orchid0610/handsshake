@@ -132,9 +132,19 @@
     <span class="count"
       >{app.hosts.length} {app.hosts.length === 1 ? "host" : "hosts"}</span
     >
-    <button class="btn lockbtn" onclick={() => app.lock()}
-      ><Icon name="lock" size={14} /> Lock</button
-    >
+    <span class="footbtns">
+      <button
+        class="icon-btn"
+        onclick={() => (app.settingsOpen = true)}
+        title="Settings (Ctrl+,)"
+        aria-label="Settings"
+      >
+        <Icon name="sliders" size={16} />
+      </button>
+      <button class="btn lockbtn" onclick={() => app.lock()}
+        ><Icon name="lock" size={14} /> Lock</button
+      >
+    </span>
   </div>
 </aside>
 
@@ -314,5 +324,11 @@
     height: 30px;
     padding: 0 11px;
     font-size: 13px;
+  }
+
+  .footbtns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 </style>

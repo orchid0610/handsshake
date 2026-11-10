@@ -11,6 +11,7 @@ import (
 
 	"handsshake/internal/sshconn"
 	"handsshake/internal/vault"
+	"handsshake/internal/settings"
 )
 
 type App struct {
@@ -21,6 +22,7 @@ type App struct {
 	mu       sync.Mutex // protects the two maps below
 	sessions map[string]*session
 	prompts  map[string]chan bool // pending "trust this host?" questions
+	settings *settings.Store
 }
 
 func New() (*App, error) {
@@ -28,8 +30,13 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	st, err := settings.Open(filepath.Join(filepath.Dir(vp), "settings.json"))
+	if err != nil {
+		return nil, err
+	}
 	return &App{
 		vault:    vault.New(vp),
+		settings: st,
 		known:    sshconn.NewKnownHosts(filepath.Join(filepath.Dir(vp), "known_hosts")),
 		sessions: map[string]*session{},
 		prompts:  map[string]chan bool{},
