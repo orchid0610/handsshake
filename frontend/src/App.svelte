@@ -13,6 +13,7 @@
   import Unlock from "./lib/components/Unlock.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
   import Icon from "./lib/components/Icon.svelte";
+  import ImportDialog from './lib/components/ImportDialog.svelte'
 
   onMount(() => {
     settings.load(); // settings hold no secrets, so this works while the vault is locked
@@ -93,6 +94,7 @@
 
 {#if app.editor.open}<HostForm />{/if}
 {#if app.settingsOpen}<SettingsDialog />{/if}
+{#if app.importOpen}<ImportDialog />{/if}
 <HostKeyDialog />
 <ConfirmDialog />
 {#if app.gated}<Unlock />{/if}

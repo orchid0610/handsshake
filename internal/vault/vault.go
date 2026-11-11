@@ -306,6 +306,25 @@ func (v *Vault) Put(h Host) (string, error) {
 	return h.ID, v.save()
 }
 
+// AddMany adds several new hosts (any IDs are replaced) and saves once.
+func (v *Vault) AddMany(hosts []Host) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.key == nil {
+		return ErrLocked
+	}
+	before := len(v.data.Hosts)
+	for _, h := range hosts {
+		h.ID = newID()
+		v.data.Hosts = append(v.data.Hosts, h)
+	}
+	if err := v.save(); err != nil {
+		v.data.Hosts = v.data.Hosts[:before] // don't keep what we failed to save
+		return err
+	}
+	return nil
+}
+
 func (v *Vault) Delete(id string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()

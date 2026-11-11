@@ -1,6 +1,6 @@
 import * as Go from "../../wailsjs/go/app/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import type { HostInfo, HostInput, VaultState, Settings } from "./types";
+import type { HostInfo, HostInput, VaultState, Settings, ImportPreview } from "./types";
 
 /** Wails rejects with a plain string; turn anything into readable text. */
 export function errText(e: unknown): string {
@@ -34,6 +34,11 @@ export const api = {
     Go.SaveSettings(s as any) as unknown as Promise<Settings>,
   changePassword: (current: string, next: string) =>
     Go.ChangePassword(current, next),
+  pickConfigFile: () => Go.PickConfigFile(),
+  previewImport: (path: string) =>
+    Go.PreviewSSHConfig(path) as unknown as Promise<ImportPreview>,
+  importHosts: (path: string, aliases: string[], copyKeys: boolean) =>
+    Go.ImportHosts(path, aliases, copyKeys),
 };
 
 export const events = { on: EventsOn };

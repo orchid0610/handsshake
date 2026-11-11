@@ -32,6 +32,7 @@ class AppStore {
     hostId: null,
   });
   settingsOpen = $state(false);
+  importOpen = $state(false);
 
   private nextToast = 1;
 
@@ -83,6 +84,8 @@ class AppStore {
     this.editor = { open: false, hostId: null };
     this.confirm = null;
     this.settingsOpen = false
+    this.importOpen = false
+    
   }
 
   openEditor(hostId: string | null = null) {

@@ -65,6 +65,69 @@ export namespace app {
 
 }
 
+export namespace hostimport {
+	
+	export class Candidate {
+	    alias: string;
+	    address: string;
+	    user: string;
+	    keyPath: string;
+	    keyStatus: string;
+	    status: string;
+	    note: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Candidate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.alias = source["alias"];
+	        this.address = source["address"];
+	        this.user = source["user"];
+	        this.keyPath = source["keyPath"];
+	        this.keyStatus = source["keyStatus"];
+	        this.status = source["status"];
+	        this.note = source["note"];
+	    }
+	}
+	export class Preview {
+	    path: string;
+	    candidates: Candidate[];
+	    warnings: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Preview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.candidates = this.convertValues(source["candidates"], Candidate);
+	        this.warnings = source["warnings"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace settings {
 	
 	export class Settings {

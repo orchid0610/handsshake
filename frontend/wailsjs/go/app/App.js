@@ -34,6 +34,10 @@ export function GetSettings() {
   return window['go']['app']['App']['GetSettings']();
 }
 
+export function ImportHosts(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ImportHosts'](arg1, arg2, arg3);
+}
+
 export function ListHosts() {
   return window['go']['app']['App']['ListHosts']();
 }
@@ -42,8 +46,16 @@ export function LockVault() {
   return window['go']['app']['App']['LockVault']();
 }
 
+export function PickConfigFile() {
+  return window['go']['app']['App']['PickConfigFile']();
+}
+
 export function PickKeyFile() {
   return window['go']['app']['App']['PickKeyFile']();
+}
+
+export function PreviewSSHConfig(arg1) {
+  return window['go']['app']['App']['PreviewSSHConfig'](arg1);
 }
 
 export function RecoverVault(arg1, arg2) {

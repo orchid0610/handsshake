@@ -124,3 +124,34 @@ func TestTamperingIsDetected(t *testing.T) {
 		})
 	}
 }
+
+func TestAddMany(t *testing.T) {
+	path, _ := newVault(t) // starts with one host
+
+	v := New(path)
+	if err := v.AddMany([]Host{{Name: "a"}}); !errors.Is(err, ErrLocked) {
+		t.Fatalf("expected ErrLocked, got %v", err)
+	}
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.AddMany([]Host{{Name: "a"}, {Name: "b"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	v.Lock()
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+	hosts, _ := v.Hosts()
+	if len(hosts) != 3 {
+		t.Fatalf("expected 3 hosts, got %d", len(hosts))
+	}
+	ids := map[string]bool{}
+	for _, h := range hosts {
+		if h.ID == "" || ids[h.ID] {
+			t.Fatalf("IDs must be unique and non-empty: %+v", hosts)
+		}
+		ids[h.ID] = true
+	}
+}

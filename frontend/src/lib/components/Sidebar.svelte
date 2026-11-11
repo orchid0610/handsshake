@@ -51,13 +51,23 @@
       <span class="mark"><Icon name="terminal" size={15} /></span>
       <span>HandSSHake</span>
     </div>
-    <button
-      class="btn btn-primary add"
-      onclick={() => app.openEditor()}
-      title="Add host"
-    >
-      <Icon name="plus" size={15} /> New
-    </button>
+    <span class="headbtns">
+      <button
+        class="icon-btn"
+        onclick={() => (app.importOpen = true)}
+        title="Import from SSH config"
+        aria-label="Import hosts"
+      >
+        <Icon name="download" size={16} />
+      </button>
+      <button
+        class="btn btn-primary add"
+        onclick={() => app.openEditor()}
+        title="Add host"
+      >
+        <Icon name="plus" size={15} /> New
+      </button>
+    </span>
   </div>
 
   <div class="search">
@@ -123,6 +133,7 @@
       <button class="btn" onclick={() => app.openEditor()}
         >Add your first host</button
       >
+      <button class="btn" onclick={() => (app.importOpen = true)}>Import from ~/.ssh/config</button>
     </div>
   {:else if app.filtered.length === 0}
     <div class="empty"><p>No hosts match “{app.query}”</p></div>
@@ -330,5 +341,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .headbtns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 </style>

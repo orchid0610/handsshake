@@ -38,3 +38,19 @@ export interface Settings {
   scrollback: number
   autoLockMinutes: number
 }
+
+export interface ImportCandidate {
+  alias: string
+  address: string
+  user: string
+  keyPath: string
+  keyStatus: 'ok' | 'encrypted' | 'missing' | 'invalid' | 'none'
+  status: 'new' | 'exists' | 'unsupported'
+  note: string
+}
+
+export interface ImportPreview {
+  path: string
+  candidates: ImportCandidate[]
+  warnings: string[]
+}
