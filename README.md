@@ -23,6 +23,11 @@ Your SSH hosts and credentials stay on your machine, protected by an encrypted l
 
 ![HandSSHake SSH terminal](docs/images/ssh-terminal.png)
 
+
+### Settings
+
+![HandSSHake Settings](docs/images/settings.png)
+
 ## Platforms
 
 HandSSHake currently supports:
