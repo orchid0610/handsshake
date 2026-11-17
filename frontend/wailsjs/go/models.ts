@@ -1,5 +1,17 @@
 export namespace app {
 	
+	export class ConnectInfo {
+	    hostKeyType: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hostKeyType = source["hostKeyType"];
+	    }
+	}
 	export class HostInfo {
 	    id: string;
 	    name: string;
@@ -12,6 +24,8 @@ export namespace app {
 	    hasPassphrase: boolean;
 	    os: string;
 	    osLike: string;
+	    osName: string;
+	    lastUsed: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new HostInfo(source);
@@ -30,6 +44,8 @@ export namespace app {
 	        this.hasPassphrase = source["hasPassphrase"];
 	        this.os = source["os"];
 	        this.osLike = source["osLike"];
+	        this.osName = source["osName"];
+	        this.lastUsed = source["lastUsed"];
 	    }
 	}
 	export class HostInput {
@@ -138,6 +154,8 @@ export namespace settings {
 	    cursorStyle: string;
 	    cursorBlink: boolean;
 	    scrollback: number;
+	    compactSpacing: boolean;
+	    showStatusBar: boolean;
 	    autoLockMinutes: number;
 	
 	    static createFrom(source: any = {}) {
@@ -153,6 +171,8 @@ export namespace settings {
 	        this.cursorStyle = source["cursorStyle"];
 	        this.cursorBlink = source["cursorBlink"];
 	        this.scrollback = source["scrollback"];
+	        this.compactSpacing = source["compactSpacing"];
+	        this.showStatusBar = source["showStatusBar"];
 	        this.autoLockMinutes = source["autoLockMinutes"];
 	    }
 	}

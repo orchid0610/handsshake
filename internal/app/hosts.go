@@ -28,6 +28,8 @@ type HostInfo struct {
 	HasPassphrase bool   `json:"hasPassphrase"`
 	OS            string `json:"os"`
 	OSLike        string `json:"osLike"`
+	OSName        string `json:"osName"`
+	LastUsed      int64  `json:"lastUsed"`
 }
 
 // HostInput is what the UI sends when saving. On edit, an empty secret
@@ -52,6 +54,7 @@ func toInfo(h vault.Host) HostInfo {
 		HasPassword: h.Password != "", KeyInVault: h.PrivateKey != "",
 		HasPassphrase: h.Passphrase != "",
 		OS:            h.OS, OSLike: h.OSLike,
+		OSName: h.OSName, LastUsed: h.LastUsed,
 	}
 }
 
@@ -105,7 +108,7 @@ func (a *App) SaveHost(in HostInput) (string, error) {
 	}
 
 	if editing {
-		h.OS, h.OSLike = old.OS, old.OSLike
+		h.OS, h.OSLike, h.OSName, h.LastUsed = old.OS, old.OSLike, old.OSName, old.LastUsed
 	}
 
 	switch h.Auth {

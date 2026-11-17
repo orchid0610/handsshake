@@ -1,6 +1,13 @@
 import * as Go from "../../wailsjs/go/app/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import type { HostInfo, HostInput, VaultState, Settings, ImportPreview } from "./types";
+import type {
+  HostInfo,
+  HostInput,
+  VaultState,
+  Settings,
+  ImportPreview,
+  ConnectInfo,
+} from "./types";
 
 /** Wails rejects with a plain string; turn anything into readable text. */
 export function errText(e: unknown): string {
@@ -23,7 +30,8 @@ export const api = {
   pickKeyFile: () => Go.PickKeyFile(),
 
   connect: (id: string, hostId: string, cols: number, rows: number) =>
-    Go.Connect(id, hostId, cols, rows),
+    Go.Connect(id, hostId, cols, rows) as unknown as Promise<ConnectInfo>,
+  latency: (id: string) => Go.Latency(id),
   write: (id: string, data: string) => Go.Write(id, data),
   resize: (id: string, cols: number, rows: number) => Go.Resize(id, cols, rows),
   disconnect: (id: string) => Go.Disconnect(id),

@@ -8,7 +8,7 @@ export function AnswerHostKey(arg1:string,arg2:boolean):Promise<void>;
 
 export function ChangePassword(arg1:string,arg2:string):Promise<void>;
 
-export function Connect(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+export function Connect(arg1:string,arg2:string,arg3:number,arg4:number):Promise<app.ConnectInfo>;
 
 export function CreateVault(arg1:string):Promise<string>;
 
@@ -21,6 +21,8 @@ export function GetHost(arg1:string):Promise<app.HostInfo>;
 export function GetSettings():Promise<settings.Settings>;
 
 export function ImportHosts(arg1:string,arg2:Array<string>,arg3:boolean):Promise<number>;
+
+export function Latency(arg1:string):Promise<number>;
 
 export function ListHosts():Promise<Array<app.HostInfo>>;
 

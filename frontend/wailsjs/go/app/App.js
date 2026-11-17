@@ -38,6 +38,10 @@ export function ImportHosts(arg1, arg2, arg3) {
   return window['go']['app']['App']['ImportHosts'](arg1, arg2, arg3);
 }
 
+export function Latency(arg1) {
+  return window['go']['app']['App']['Latency'](arg1);
+}
+
 export function ListHosts() {
   return window['go']['app']['App']['ListHosts']();
 }

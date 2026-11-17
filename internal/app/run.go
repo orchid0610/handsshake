@@ -20,7 +20,7 @@ func Run(assets embed.FS) error {
 		Height:           760,
 		MinWidth:         900,
 		MinHeight:        560,
-		BackgroundColour: &options.RGBA{R: 15, G: 17, B: 21, A: 1},
+		BackgroundColour: &options.RGBA{R: 9, G: 12, B: 11, A: 1},
 		AssetServer:      &assetserver.Options{Assets: assets},
 		OnStartup:        a.startup,
 		OnShutdown:       a.shutdown,

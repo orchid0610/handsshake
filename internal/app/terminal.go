@@ -17,17 +17,22 @@ type session struct {
 	shell *sshconn.Shell
 }
 
+// ConnectInfo is what the UI learns when a session opens.
+type ConnectInfo struct {
+	HostKeyType string `json:"hostKeyType"` // e.g. "ssh-ed25519"
+}
+
 // Connect opens a terminal for a saved host. The UI chooses the id so it can
 // start listening for output events BEFORE the first bytes arrive. If the
 // server is unknown, this call waits while the UI asks the user to verify
 // the fingerprint.
-func (a *App) Connect(id, hostID string, cols, rows int) error {
+func (a *App) Connect(id, hostID string, cols, rows int) (ConnectInfo, error) {
 	if cols < 1 || rows < 1 {
 		cols, rows = 80, 24
 	}
 	h, err := a.vault.Get(hostID)
 	if err != nil {
-		return err
+		return ConnectInfo{}, err
 	}
 
 	var creds sshconn.Credentials
@@ -36,7 +41,7 @@ func (a *App) Connect(id, hostID string, cols, rows int) error {
 		pem := []byte(h.PrivateKey)
 		if len(pem) == 0 {
 			if pem, err = os.ReadFile(expandHome(h.KeyPath)); err != nil {
-				return fmt.Errorf("cannot read the key file: %w", err)
+				return ConnectInfo{}, fmt.Errorf("cannot read the key file: %w", err)
 			}
 		}
 		creds = sshconn.Credentials{PrivateKey: pem, Passphrase: h.Passphrase}
@@ -51,12 +56,12 @@ func (a *App) Connect(id, hostID string, cols, rows int) error {
 		HostKey: a.known.Callback(a.askTrust),
 	})
 	if err != nil {
-		return err
+		return ConnectInfo{}, err
 	}
 	shell, err := conn.OpenShell(cols, rows)
 	if err != nil {
 		conn.Close()
-		return err
+		return ConnectInfo{}, err
 	}
 
 	a.mu.Lock()
@@ -64,8 +69,22 @@ func (a *App) Connect(id, hostID string, cols, rows int) error {
 	a.mu.Unlock()
 
 	go a.pump(id, shell)
+	_ = a.vault.Update(hostID, func(h *vault.Host) { h.LastUsed = time.Now().Unix() })
 	go a.detectOS(id, hostID, conn)
-	return nil
+	return ConnectInfo{HostKeyType: conn.HostKeyType()}, nil
+}
+
+// Latency measures one round trip to the server, in milliseconds.
+func (a *App) Latency(id string) (int, error) {
+	s := a.get(id)
+	if s == nil {
+		return 0, fmt.Errorf("no session %s", id)
+	}
+	d, err := s.conn.Ping()
+	if err != nil {
+		return 0, err
+	}
+	return max(1, int(d.Milliseconds())), nil // sub-millisecond still shows as 1 ms
 }
 
 // pump forwards everything the server prints to the UI as events.
@@ -165,9 +184,10 @@ func (a *App) AnswerHostKey(promptID string, trust bool) {
 	}
 }
 
-
 // detectOS finds out what the server runs, tells the UI, and remembers it
 // on the host so the sidebar can show the logo next time.
+// detectOS finds out what the server runs, tells the UI, and remembers it
+// on the host so the UI can show the logo and name before the next connect.
 func (a *App) detectOS(id, hostID string, conn *sshconn.Conn) {
 	info, err := conn.DetectOS()
 	if err != nil || (info.ID == "" && info.Name == "") {
@@ -175,10 +195,11 @@ func (a *App) detectOS(id, hostID string, conn *sshconn.Conn) {
 	}
 	runtime.EventsEmit(a.ctx, "term:os:"+id, info)
 
-	h, err := a.vault.Get(hostID)
-	if err != nil || (h.OS == info.ID && h.OSLike == info.Like) {
-		return
+	if h, err := a.vault.Get(hostID); err == nil &&
+		h.OS == info.ID && h.OSLike == info.Like && h.OSName == info.Name {
+		return // nothing changed, so don't rewrite the vault
 	}
-	h.OS, h.OSLike = info.ID, info.Like
-	_, _ = a.vault.Put(h) // best effort: the vault may have been locked meanwhile
+	_ = a.vault.Update(hostID, func(h *vault.Host) {
+		h.OS, h.OSLike, h.OSName = info.ID, info.Like, info.Name
+	})
 }

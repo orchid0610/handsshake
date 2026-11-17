@@ -51,8 +51,10 @@ type Host struct {
 	KeyPath    string   `json:"keyPath,omitempty"`    // key stored on disk...
 	PrivateKey string   `json:"privateKey,omitempty"` // ...or imported into the vault
 	Passphrase string   `json:"passphrase,omitempty"`
-	OS         string   `json:"os,omitempty"`     // detected remote OS id, e.g. "ubuntu"
-	OSLike     string   `json:"osLike,omitempty"` // related families, e.g. "debian"
+	OS         string   `json:"os,omitempty"`       // detected remote OS id, e.g. "ubuntu"
+	OSLike     string   `json:"osLike,omitempty"`   // related families, e.g. "debian"
+	OSName     string   `json:"osName,omitempty"`   // e.g. "Ubuntu 24.04.3 LTS"
+	LastUsed   int64    `json:"lastUsed,omitempty"` // unix seconds of the last successful connection
 }
 
 type data struct {
@@ -304,6 +306,23 @@ func (v *Vault) Put(h Host) (string, error) {
 		v.data.Hosts[i] = h
 	}
 	return h.ID, v.save()
+}
+
+// Update applies fn to the host with the given ID and saves, all under the
+// vault's lock. Use this instead of Get-then-Put for background updates, so
+// two updates can't overwrite each other's changes.
+func (v *Vault) Update(id string, fn func(*Host)) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.key == nil {
+		return ErrLocked
+	}
+	i := v.index(id)
+	if i < 0 {
+		return ErrNotFound
+	}
+	fn(&v.data.Hosts[i])
+	return v.save()
 }
 
 // AddMany adds several new hosts (any IDs are replaced) and saves once.

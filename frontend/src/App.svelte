@@ -3,28 +3,36 @@
   import { app } from "./lib/stores/app.svelte";
   import { tabs } from "./lib/stores/tabs.svelte";
   import { settings } from "./lib/stores/settings.svelte";
-  import Sidebar from "./lib/components/Sidebar.svelte";
+  import { applyTheme } from "./lib/appTheme";
+  import Rail from "./lib/components/Rail.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import TerminalView from "./lib/components/TerminalView.svelte";
+  import EmptyPage from "./lib/components/EmptyPage.svelte";
   import HostForm from "./lib/components/HostForm.svelte";
   import HostKeyDialog from "./lib/components/HostKeyDialog.svelte";
   import ConfirmDialog from "./lib/components/ConfirmDialog.svelte";
-  import SettingsDialog from "./lib/components/SettingsDialog.svelte";
+  import ImportDialog from "./lib/components/ImportDialog.svelte";
   import Unlock from "./lib/components/Unlock.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
-  import Icon from "./lib/components/Icon.svelte";
-  import ImportDialog from './lib/components/ImportDialog.svelte'
+  import HostsPage from "./lib/pages/HostsPage.svelte";
+  import SettingsPage from "./lib/pages/SettingsPage.svelte";
 
   onMount(() => {
     settings.load(); // settings hold no secrets, so this works while the vault is locked
     app.init();
   });
 
-  // The terminal theme also colours the area around the terminals.
+  // The chosen theme recolours the whole app.
+  $effect(() => applyTheme(settings.theme));
+
+  // Terminal typography as CSS variables (used by the status bar).
   $effect(() => {
-    document.documentElement.style.setProperty(
-      "--term-bg",
-      settings.theme.colors.background ?? "#0d0f14",
+    const root = document.documentElement.style;
+    root.setProperty("--terminal-font-family", settings.fontStack);
+    root.setProperty("--terminal-font-size", `${settings.value.fontSize}px`);
+    root.setProperty(
+      "--terminal-line-height",
+      String(settings.value.lineHeight),
     );
   });
 
@@ -56,14 +64,38 @@
   });
 
   function onKey(e: KeyboardEvent) {
-    if (e.ctrlKey && e.key === "Tab") {
+    if (app.gated) return;
+    const mod = e.ctrlKey || e.metaKey;
+    const newTab =
+      (e.ctrlKey && e.shiftKey && e.code === "KeyT") ||
+      (e.metaKey && !e.shiftKey && e.code === "KeyT");
+    const closeTab =
+      (e.ctrlKey && e.shiftKey && e.code === "KeyW") ||
+      (e.metaKey && !e.shiftKey && e.code === "KeyW");
+
+    if (newTab) {
       e.preventDefault();
       e.stopPropagation();
-      tabs.cycle(e.shiftKey ? -1 : 1);
-    } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+      app.go("terminal");
+      app.pickerOpen = !app.pickerOpen;
+    } else if (closeTab) {
       e.preventDefault();
       e.stopPropagation();
-      if (!app.gated) app.settingsOpen = !app.settingsOpen;
+      if (app.page === "terminal" && tabs.activeId) tabs.close(tabs.activeId);
+    } else if (e.ctrlKey && e.key === "Tab") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (app.page === "terminal") tabs.cycle(e.shiftKey ? -1 : 1);
+    } else if (mod && e.key === ",") {
+      e.preventDefault();
+      e.stopPropagation();
+      app.go("settings");
+    } else if (mod && e.key.toLowerCase() === "k" && app.page !== "terminal") {
+      // Not on the terminal page: Ctrl+K belongs to programs like nano there.
+      e.preventDefault();
+      e.stopPropagation();
+      app.focusSearch = true;
+      app.go("hosts");
     }
   }
 </script>
@@ -71,29 +103,64 @@
 <svelte:window onkeydowncapture={onKey} />
 
 <div class="shell">
-  <Sidebar />
+  <Rail />
+
   <main>
-    {#if tabs.items.length > 0}<TabBar />{/if}
-    <div class="stage">
-      {#each tabs.items as tab (tab.id)}
-        <TerminalView {tab} active={tab.id === tabs.activeId} />
-      {/each}
-      {#if tabs.items.length === 0}
-        <div class="welcome">
-          <span class="big"><Icon name="terminal" size={30} /></span>
-          <h2>No open sessions</h2>
-          <p>
-            Pick a host from the sidebar to connect, or press <kbd>Ctrl K</kbd> to
-            search.
-          </p>
+    <!-- Always mounted: hiding this page must never drop a live session. -->
+    <section class="page terminal" class:hidden={app.page !== "terminal"}>
+      <div class="workspace">
+        <TabBar />
+        <div class="window">
+          {#each tabs.items as tab (tab.id)}
+            <TerminalView
+              {tab}
+              active={tab.id === tabs.activeId && app.page === "terminal"}
+            />
+          {/each}
+          {#if tabs.items.length === 0}
+            <EmptyPage
+              icon="terminal"
+              eyebrow="Sessions"
+              title="No open sessions"
+              text="Pick a host to start a session, or press Ctrl+Shift+T."
+              action="Open a session"
+              onaction={() => (app.pickerOpen = true)}
+            />
+          {/if}
         </div>
-      {/if}
-    </div>
+      </div>
+    </section>
+
+    {#if app.page === "hosts"}
+      <section class="page glow"><HostsPage /></section>
+    {:else if app.page === "settings"}
+      <section class="page glow"><SettingsPage /></section>
+    {:else if app.page === "sftp"}
+      <section class="page glow">
+        <EmptyPage
+          icon="folder"
+          eyebrow="File transfer"
+          title="SFTP"
+          tag="Coming soon"
+          text="Connect to a host to browse and transfer files securely."
+          action="Choose a host"
+          disabled
+        />
+      </section>
+    {:else if app.page === "keys"}
+      <section class="page glow">
+        <EmptyPage
+          icon="key"
+          eyebrow="Authentication"
+          title="Keys"
+          text="Your SSH keys and identities will appear here."
+        />
+      </section>
+    {/if}
   </main>
 </div>
 
 {#if app.editor.open}<HostForm />{/if}
-{#if app.settingsOpen}<SettingsDialog />{/if}
 {#if app.importOpen}<ImportDialog />{/if}
 <HostKeyDialog />
 <ConfirmDialog />
@@ -103,50 +170,45 @@
 <style>
   .shell {
     display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
     height: 100vh;
+    background: var(--bg);
   }
   main {
-    display: flex;
-    flex-direction: column;
+    position: relative;
     min-width: 0;
     min-height: 0;
-    background: var(--term-bg);
   }
-  .stage {
+  .page {
+    position: absolute;
+    inset: 0;
+  }
+  .page.hidden {
+    display: none;
+  }
+  .page.glow {
+    background: var(--page-glow), var(--bg);
+    overflow: auto;
+  }
+
+  /* the inset, rounded terminal frame from the design */
+  .terminal {
+    background: var(--bg);
+  }
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px 12px 12px;
+  }
+  .window {
     position: relative;
     flex: 1;
     min-height: 0;
-  }
-  .welcome {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 10px;
-    color: var(--text-faint);
-    text-align: center;
-  }
-  .big {
-    display: grid;
-    place-items: center;
-    width: 64px;
-    height: 64px;
-    margin-bottom: 6px;
-    border-radius: 20px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-  }
-  .welcome h2 {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text-dim);
-  }
-  kbd {
-    font: 500 11px var(--font-ui);
-    padding: 2px 6px;
-    border: 1px solid var(--border-strong);
-    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--terminal-border);
+    border-radius: 0 0 9px 9px;
+    background: var(--terminal-bg);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.16);
   }
 </style>

@@ -20,6 +20,10 @@
   let unsub: Array<() => void> = [];
   let disposed = false;
 
+  let cols = $state(80);
+  let rows = $state(24);
+  let latency = $state<number | null>(null);
+
   function dropListeners() {
     unsub.forEach((f) => f());
     unsub = [];
@@ -30,6 +34,7 @@
     dropListeners();
     if (sid) api.disconnect(sid); // harmless if it no longer exists
     tabs.setStatus(tab.id, "connecting");
+    latency = null;
     term.reset();
 
     const id = `${tab.id}-${++attempt}`;
@@ -48,18 +53,20 @@
         (info: { id: string; name: string; like: string }) => {
           if (sid !== id) return;
           tabs.setOS(tab.id, info.id, info.like, info.name);
-          app.refreshHosts(); // the sidebar shows the logo too
+          app.refreshHosts(); // the Hosts page shows the logo and OS name too
         },
       ),
     );
 
     try {
-      await api.connect(id, tab.hostId, term.cols, term.rows);
+      const info = await api.connect(id, tab.hostId, term.cols, term.rows);
       if (disposed || sid !== id) {
         api.disconnect(id);
         return;
       }
+      tabs.setKeyType(tab.id, info.hostKeyType);
       if (tab.status === "connecting") tabs.setStatus(tab.id, "connected");
+      app.refreshHosts(); // "last used" changed, so the Hosts page's recent list should too
       if (active) term.focus();
     } catch (e) {
       if (sid === id) tabs.setStatus(tab.id, "error", errText(e));
@@ -68,7 +75,7 @@
 
   onMount(async () => {
     // xterm measures character cells once; make sure the font is ready first.
-    await document.fonts.load('13.5px "JetBrains Mono"').catch(() => {});
+    await document.fonts.load('13px "JetBrains Mono"').catch(() => {});
     if (disposed) return;
 
     const s = settings.value;
@@ -87,12 +94,16 @@
     f.fit();
     term = t;
     fit = f;
+    cols = t.cols;
+    rows = t.rows;
 
     t.onData((d) => {
       if (tab.status === "connected") api.write(sid, d).catch(() => {});
     });
-    t.onResize(({ cols, rows }) => {
-      if (tab.status === "connected") api.resize(sid, cols, rows);
+    t.onResize(({ cols: c, rows: r }) => {
+      cols = c;
+      rows = r;
+      if (tab.status === "connected") api.resize(sid, c, r);
     });
 
     // Ctrl+Shift+C copies the selection (plain Ctrl+C must reach the server).
@@ -112,7 +123,7 @@
     });
 
     ro = new ResizeObserver(() => {
-      if (active) f.fit();
+      if (active && el.clientWidth > 0 && el.clientHeight > 0) f.fit();
     });
     ro.observe(el);
 
@@ -122,8 +133,17 @@
   // Apply settings changes to this terminal live.
   $effect(() => {
     // Read everything BEFORE the early return, so Svelte tracks it even on the first run.
-    const { fontSize, lineHeight, cursorStyle, cursorBlink, scrollback } =
-      settings.value;
+    const {
+      fontSize,
+      lineHeight,
+      cursorStyle,
+      cursorBlink,
+      scrollback,
+      compactSpacing,
+      showStatusBar,
+    } = settings.value;
+    void compactSpacing;
+    void showStatusBar;
     const theme = settings.theme.colors;
     const family = settings.fontStack;
     if (!term) return;
@@ -137,7 +157,7 @@
     term.options.scrollback = scrollback;
     tick().then(() => {
       if (active) fit?.fit();
-    }); // font changes alter how many columns fit
+    }); // font and padding changes alter how many columns fit
   });
 
   // When this tab becomes the visible one, re-measure it and focus it.
@@ -148,6 +168,26 @@
         term?.focus();
       });
     }
+  });
+
+  // Measure the real round-trip time every 10 seconds while this tab is visible and connected.
+  $effect(() => {
+    if (!active || tab.status !== "connected") return;
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const ms = await api.latency(sid);
+        if (!stopped) latency = ms;
+      } catch {
+        if (!stopped) latency = null;
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 10_000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
   });
 
   onDestroy(() => {
@@ -161,7 +201,19 @@
 
 <div class="pane" class:hidden={!active}>
   <!-- The padding lives on .wrap; xterm measures .term, which has none. -->
-  <div class="wrap"><div class="term" bind:this={el}></div></div>
+  <div class="wrap" class:compact={settings.value.compactSpacing}>
+    <div class="term" bind:this={el}></div>
+  </div>
+
+  {#if settings.value.showStatusBar}
+    <footer class="status">
+      <span>UTF-8</span>
+      <span>{rows} × {cols}</span>
+      <span class="latency" class:off={latency === null}>
+        <i></i>{latency === null ? "—" : `${latency} ms`}
+      </span>
+    </footer>
+  {/if}
 
   {#if tab.status === "connecting"}
     <div class="overlay">
@@ -196,20 +248,54 @@
   .pane {
     position: absolute;
     inset: 0;
-    background: var(--term-bg);
+    display: flex;
+    flex-direction: column;
+    background: var(--terminal-bg);
   }
-  .hidden {
+  .pane.hidden {
     display: none;
   }
   .wrap {
-    position: absolute;
-    inset: 0;
-    padding: 12px 6px 18px 16px;
+    flex: 1;
+    min-height: 0;
+    padding: 18px 10px 14px 22px;
+  }
+  .wrap.compact {
+    padding: 10px 6px 8px 12px;
   }
   .term {
     width: 100%;
     height: 100%;
   }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    height: 28px;
+    flex: none;
+    padding: 0 13px;
+    border-top: 1px solid var(--terminal-border);
+    background: var(--terminal-surface);
+    color: var(--terminal-muted);
+    font: 10px var(--terminal-font-family, var(--font-mono));
+  }
+  .latency {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .latency i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+  .latency.off i {
+    background: var(--terminal-muted);
+  }
+
   .overlay {
     position: absolute;
     inset: 0;
@@ -220,14 +306,14 @@
     padding: 30px;
     text-align: center;
     color: var(--text-dim);
-    background: color-mix(in srgb, var(--term-bg) 92%, transparent);
+    background: var(--overlay);
   }
   .overlay strong {
     color: var(--text);
   }
   h3 {
     font-size: 17px;
-    color: var(--text);
+    color: var(--text-strong);
   }
   .msg {
     max-width: 460px;
@@ -249,13 +335,13 @@
     height: 24px;
     border-radius: 50%;
     border: 2px solid var(--border-strong);
-    border-top-color: var(--accent);
+    border-top-color: var(--accent-line);
     animation: spin 0.8s linear infinite;
   }
   .ended {
     position: absolute;
     left: 50%;
-    bottom: 22px;
+    bottom: 46px;
     transform: translateX(-50%);
     display: flex;
     align-items: center;

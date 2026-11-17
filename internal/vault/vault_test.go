@@ -155,3 +155,32 @@ func TestAddMany(t *testing.T) {
 		ids[h.ID] = true
 	}
 }
+
+func TestUpdate(t *testing.T) {
+	path, _ := newVault(t)
+	v := New(path)
+	if err := v.Update("x", func(*Host) {}); !errors.Is(err, ErrLocked) {
+		t.Fatalf("expected ErrLocked, got %v", err)
+	}
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+	hosts, _ := v.Hosts()
+	id := hosts[0].ID
+
+	if err := v.Update(id, func(h *Host) { h.OSName = "Ubuntu"; h.LastUsed = 42 }); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.Update("missing", func(*Host) {}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+
+	v.Lock()
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := v.Get(id)
+	if got.OSName != "Ubuntu" || got.LastUsed != 42 || got.Password != "hunter2" {
+		t.Fatalf("update did not persist, or clobbered other fields: %+v", got)
+	}
+}

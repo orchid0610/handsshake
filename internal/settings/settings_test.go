@@ -48,7 +48,7 @@ func TestSanitizeClampsEverything(t *testing.T) {
 	}.Sanitize()
 
 	want := Settings{
-		Theme: "tokyo-night", FontFamily: "jetbrains-mono", FontSize: 28, LineHeight: 1.0,
+		Theme: "emerald", FontFamily: "jetbrains-mono", FontSize: 28, LineHeight: 1.0,
 		CursorStyle: "block", Scrollback: 500, AutoLockMinutes: 1440,
 	}
 	if got != want {
@@ -62,7 +62,7 @@ func TestPartialFileKeepsDefaults(t *testing.T) {
 
 	st, _ := Open(path)
 	got := st.Get()
-	if got.FontSize != 16 || got.Theme != Default().Theme || got.Scrollback != Default().Scrollback {
+	if got.FontSize != 16 || got.Theme != Default().Theme || got.Scrollback != Default().Scrollback || !got.ShowStatusBar {
 		t.Fatalf("got %+v", got)
 	}
 }

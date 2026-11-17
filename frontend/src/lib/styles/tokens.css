@@ -1,31 +1,59 @@
 :root {
-  --bg: #0b0d12;
-  --term-bg: #0d0f14;
-  --surface: #11141b;
-  --surface-2: #171b25;
-  --surface-3: #1e2331;
-  --border: #212737;
-  --border-strong: #2e3548;
+  color-scheme: dark;
 
-  --text: #e7e9ef;
-  --text-dim: #9ba4b8;
-  --text-faint: #667086;
+  /* defaults = Deep emerald; appTheme.ts overwrites all of these */
+  --bg: #090d0b;
+  --term-bg: #090d0b;
+  --rail-bg: #0c100e;
+  --card: #0e1411;
+  --surface: #141a17;
+  --surface-2: #1a2024;
+  --surface-3: #242a27;
+  --input-bg: #060908;
+  --border: #1d2923;
+  --border-strong: #343e39;
 
-  --accent: #5b7cfa;
-  --accent-hover: #748fff;
-  --accent-soft: rgba(91, 124, 250, 0.14);
-  --success: #4ade80;
+  --text: #d4dbd7;
+  --text-strong: #edf0ee;
+  --text-dim: #8b938f;
+  --text-faint: #626965;
+
+  --accent: #238b61;
+  --accent-hover: #3d9974;
+  --accent-text: #5fc493;
+  --accent-line: #5fc493;
+  --accent-soft: rgba(95, 196, 147, 0.14);
+  --accent-border: rgba(95, 196, 147, 0.3);
+  --btn-grad: linear-gradient(180deg, #238b61, #156044);
+  --btn-grad-hover: linear-gradient(180deg, #3d9974, #2e7258);
+  --btn-border: #33976c;
+  --btn-shadow: 0 7px 20px rgba(21, 96, 68, 0.4);
+  --brand-gradient: linear-gradient(145deg, #238b61, #156044);
+  --brand-glow: rgba(35, 139, 97, 0.3);
+  --page-glow: radial-gradient(circle at 58% -18%, rgba(95, 196, 147, 0.08), transparent 34%);
+  --tab-active: #13201a;
+  --overlay: rgba(9, 13, 11, 0.92);
+
+  --terminal-bg: #090d0b;
+  --terminal-surface: #0e1411;
+  --terminal-border: #1d2923;
+  --terminal-text: #c2ccc7;
+  --terminal-muted: #55615b;
+  --terminal-accent: #5fc493;
+  --terminal-path: #8abda5;
+
+  /* fixed: these mean the same thing in every theme */
+  --success: #4bd19b;
   --warning: #fbbf24;
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.12);
 
-  --radius-sm: 7px;
+  --rail-w: 76px;
+  --radius-sm: 8px;
   --radius: 11px;
-  --radius-lg: 16px;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --radius-lg: 14px;
+  --shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
 
   --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-
-  --sidebar-w: 280px;
 }

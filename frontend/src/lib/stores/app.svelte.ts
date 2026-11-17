@@ -19,6 +19,8 @@ export type Confirm = {
   run: () => void;
 };
 
+export type Page = "hosts" | "terminal" | "sftp" | "keys" | "settings";
+
 class AppStore {
   vault = $state<VaultState | "loading">("loading");
   recoveryKey = $state(""); // non-empty only while the "save your recovery key" screen is up
@@ -31,8 +33,15 @@ class AppStore {
     open: false,
     hostId: null,
   });
-  settingsOpen = $state(false);
   importOpen = $state(false);
+
+  page = $state<Page>("hosts");
+  focusSearch = $state(false);
+
+  go(page: Page) {
+    this.page = page;
+  }
+  pickerOpen = $state(false); // the "+" host picker in the tab bar
 
   private nextToast = 1;
 
@@ -83,9 +92,8 @@ class AppStore {
     this.query = "";
     this.editor = { open: false, hostId: null };
     this.confirm = null;
-    this.settingsOpen = false
-    this.importOpen = false
-    
+    this.importOpen = false;
+    this.pickerOpen = false;
   }
 
   openEditor(hostId: string | null = null) {

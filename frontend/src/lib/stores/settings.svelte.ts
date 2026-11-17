@@ -1,16 +1,18 @@
 import { api, errText } from "../api";
-import { themeById } from "../themes";
+import { THEMES, themeById } from "../themes";
 import type { Settings } from "../types";
 import { app } from "./app.svelte";
 
 export const DEFAULTS: Settings = {
-  theme: "tokyo-night",
+  theme: "emerald",
   fontFamily: "jetbrains-mono",
-  fontSize: 13.5,
-  lineHeight: 1.2,
+  fontSize: 13,
+  lineHeight: 1.4,
   cursorStyle: "block",
   cursorBlink: true,
   scrollback: 5000,
+  compactSpacing: false,
+  showStatusBar: true,
   autoLockMinutes: 0,
 };
 
@@ -32,7 +34,10 @@ class SettingsStore {
 
   async load() {
     try {
-      this.value = await api.getSettings();
+      const s = await api.getSettings();
+      // A theme from an older version no longer exists: show the default as selected.
+      if (!THEMES.some((t) => t.id === s.theme)) s.theme = DEFAULTS.theme;
+      this.value = s;
     } catch (e) {
       app.toast("error", errText(e));
     }
@@ -44,6 +49,32 @@ class SettingsStore {
     this.dirty = true;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.persist(), 400);
+  }
+
+  /** Back to defaults for everything about how the terminal looks. Security settings are left alone. */
+  resetTerminal() {
+    const {
+      theme,
+      fontFamily,
+      fontSize,
+      lineHeight,
+      cursorStyle,
+      cursorBlink,
+      scrollback,
+      compactSpacing,
+      showStatusBar,
+    } = DEFAULTS;
+    this.update({
+      theme,
+      fontFamily,
+      fontSize,
+      lineHeight,
+      cursorStyle,
+      cursorBlink,
+      scrollback,
+      compactSpacing,
+      showStatusBar,
+    });
   }
 
   private async persist() {

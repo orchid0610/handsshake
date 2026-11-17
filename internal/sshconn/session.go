@@ -22,9 +22,10 @@ type Config struct {
 // Conn is an authenticated connection. Shells (and later SFTP) are
 // channels opened on top of it.
 type Conn struct {
-	client *ssh.Client
-	done   chan struct{}
-	once   sync.Once
+	client      *ssh.Client
+	done        chan struct{}
+	once        sync.Once
+	hostKeyType string
 }
 
 func Dial(cfg Config) (*Conn, error) {
@@ -42,11 +43,15 @@ func Dial(cfg Config) (*Conn, error) {
 
 	// Remember what the host key check said: ssh wraps it in a generic
 	// "handshake failed" error, and we want to show the real reason.
+	// Remember what the host key check said: ssh wraps it in a generic
+	// "handshake failed" error, and we want to show the real reason.
 	var hostErr error
+	var keyType string
 	sc := &ssh.ClientConfig{
 		User: cfg.User,
 		Auth: methods,
 		HostKeyCallback: func(h string, r net.Addr, k ssh.PublicKey) error {
+			keyType = k.Type()
 			hostErr = cfg.HostKey(h, r, k)
 			return hostErr
 		},
@@ -64,7 +69,7 @@ func Dial(cfg Config) (*Conn, error) {
 		return nil, err
 	}
 
-	c := &Conn{client: client, done: make(chan struct{})}
+	c := &Conn{client: client, done: make(chan struct{}), hostKeyType: keyType}
 	go c.keepAlive(30 * time.Second)
 	return c, nil
 }
@@ -139,4 +144,26 @@ func withDefaultPort(addr string) string {
 		return addr
 	}
 	return net.JoinHostPort(strings.Trim(addr, "[]"), "22")
+}
+
+// HostKeyType is the key algorithm the server identified itself with.
+func (c *Conn) HostKeyType() string { return c.hostKeyType }
+
+// Ping measures one round trip to the server using an SSH keepalive request.
+func (c *Conn) Ping() (time.Duration, error) {
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			return 0, err
+		}
+		return time.Since(start), nil
+	case <-time.After(5 * time.Second):
+		return 0, errors.New("timed out")
+	}
 }

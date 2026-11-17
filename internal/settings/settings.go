@@ -21,19 +21,23 @@ type Settings struct {
 	LineHeight      float64 `json:"lineHeight"`  // multiplier
 	CursorStyle     string  `json:"cursorStyle"` // "block" | "bar" | "underline"
 	CursorBlink     bool    `json:"cursorBlink"`
-	Scrollback      int     `json:"scrollback"`      // lines
+	Scrollback      int     `json:"scrollback"` // lines
+	CompactSpacing  bool    `json:"compactSpacing"`
+	ShowStatusBar   bool    `json:"showStatusBar"`
 	AutoLockMinutes int     `json:"autoLockMinutes"` // 0 = never
 }
 
 func Default() Settings {
 	return Settings{
-		Theme:           "tokyo-night",
+		Theme:           "emerald",
 		FontFamily:      "jetbrains-mono",
-		FontSize:        13.5,
-		LineHeight:      1.2,
+		FontSize:        13,
+		LineHeight:      1.4,
 		CursorStyle:     "block",
 		CursorBlink:     true,
 		Scrollback:      5000,
+		CompactSpacing:  false,
+		ShowStatusBar:   true,
 		AutoLockMinutes: 0,
 	}
 }

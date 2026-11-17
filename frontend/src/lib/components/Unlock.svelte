@@ -157,7 +157,7 @@
   .gate {
     position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px;
     background:
-      radial-gradient(900px 500px at 50% -10%, rgba(91, 124, 250, 0.16), transparent 70%),
+      radial-gradient(900px 500px at 50% -10%, var(--accent-soft), transparent 70%),
       var(--bg);
   }
   .card {
@@ -169,8 +169,8 @@
   .logo {
     justify-self: center; display: grid; place-items: center; width: 54px; height: 54px;
     border-radius: 16px; color: #fff;
-    background: linear-gradient(135deg, #5b7cfa, #8b5cf6);
-    box-shadow: 0 8px 24px rgba(91, 124, 250, 0.35);
+    background: var(--brand-gradient);
+    box-shadow: 0 8px 24px var(--brand-glow);
   }
   h1 { text-align: center; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
   .sub { text-align: center; color: var(--text-dim); font-size: 13.5px; line-height: 1.55; }
