@@ -6,6 +6,7 @@
   import type { HostInfo } from "../types";
   import OsBadge from "./OsBadge.svelte";
   import Icon from "./Icon.svelte";
+  import { snippets } from "../stores/snippets.svelte";
 
   const states = {
     connecting: "Connecting…",
@@ -20,6 +21,7 @@
   let filter = $state("");
   let cursor = $state(0);
 
+  const snipShortcut = /Mac/i.test(navigator.platform) ? "⌘ ⇧ S" : "Ctrl ⇧ S";
   const showFilter = $derived(app.hosts.length > 5);
   const shown = $derived.by(() => {
     const q = filter.trim().toLowerCase();
@@ -190,6 +192,18 @@
   </div>
 
   <span class="spacer"></span>
+  <button
+    class="snip"
+    class:on={snippets.open}
+    onclick={() => snippets.toggle()}
+    aria-expanded={snippets.open}
+    aria-controls="snippets-drawer"
+    title="Snippets ({snipShortcut})"
+  >
+    <Icon name="code" size={14} />
+    <span>Snippets</span>
+    <kbd>{snipShortcut}</kbd>
+  </button>
   {#if current?.keyType}
     <span
       class="info"
@@ -500,5 +514,34 @@
     font: 10px var(--font-mono);
     letter-spacing: 0.04em;
     color: var(--terminal-muted);
+  }
+
+  .snip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 12px;
+    border: none;
+    border-left: 1px solid var(--terminal-border);
+    background: none;
+    color: var(--terminal-muted);
+    font-size: 11px;
+    font-weight: 600;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .snip:hover,
+  .snip.on {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  .snip kbd {
+    padding: 2px 5px;
+    border: 1px solid var(--terminal-border);
+    border-radius: 5px;
+    background: var(--terminal-bg);
+    color: var(--terminal-muted);
+    font: 500 9px var(--font-ui);
   }
 </style>

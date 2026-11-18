@@ -16,6 +16,8 @@
   import Toasts from "./lib/components/Toasts.svelte";
   import HostsPage from "./lib/pages/HostsPage.svelte";
   import SettingsPage from "./lib/pages/SettingsPage.svelte";
+  import { snippets } from "./lib/stores/snippets.svelte";
+  import SnippetsDrawer from "./lib/components/SnippetsDrawer.svelte";
 
   onMount(() => {
     settings.load(); // settings hold no secrets, so this works while the vault is locked
@@ -63,9 +65,21 @@
     };
   });
 
+  // Snippets live in the vault: load them when it opens, forget them when it locks.
+  $effect(() => {
+    if (app.gated) snippets.clear();
+    else snippets.load();
+  });
+
+  // The drawer and the "+" picker never show together, and the drawer belongs to the terminal page.
+  $effect(() => {
+    if (app.pickerOpen || app.page !== "terminal") snippets.open = false;
+  });
+
   function onKey(e: KeyboardEvent) {
     if (app.gated) return;
     const mod = e.ctrlKey || e.metaKey;
+    const snippetKey = mod && e.shiftKey && e.code === "KeyS";
     const newTab =
       (e.ctrlKey && e.shiftKey && e.code === "KeyT") ||
       (e.metaKey && !e.shiftKey && e.code === "KeyT");
@@ -73,7 +87,11 @@
       (e.ctrlKey && e.shiftKey && e.code === "KeyW") ||
       (e.metaKey && !e.shiftKey && e.code === "KeyW");
 
-    if (newTab) {
+    if (snippetKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (app.page === "terminal") snippets.toggle();
+    } else if (newTab) {
       e.preventDefault();
       e.stopPropagation();
       app.go("terminal");
@@ -127,6 +145,7 @@
               onaction={() => (app.pickerOpen = true)}
             />
           {/if}
+          <SnippetsDrawer />
         </div>
       </div>
     </section>

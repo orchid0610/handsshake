@@ -22,6 +22,10 @@ export function DeleteHost(arg1) {
   return window['go']['app']['App']['DeleteHost'](arg1);
 }
 
+export function DeleteSnippet(arg1) {
+  return window['go']['app']['App']['DeleteSnippet'](arg1);
+}
+
 export function Disconnect(arg1) {
   return window['go']['app']['App']['Disconnect'](arg1);
 }
@@ -44,6 +48,10 @@ export function Latency(arg1) {
 
 export function ListHosts() {
   return window['go']['app']['App']['ListHosts']();
+}
+
+export function ListSnippets() {
+  return window['go']['app']['App']['ListSnippets']();
 }
 
 export function LockVault() {
@@ -76,6 +84,10 @@ export function SaveHost(arg1) {
 
 export function SaveSettings(arg1) {
   return window['go']['app']['App']['SaveSettings'](arg1);
+}
+
+export function SaveSnippet(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SaveSnippet'](arg1, arg2, arg3);
 }
 
 export function Unlock(arg1) {

@@ -184,3 +184,78 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("update did not persist, or clobbered other fields: %+v", got)
 	}
 }
+
+func TestSnippets(t *testing.T) {
+	path, _ := newVault(t)
+	v := New(path)
+	if _, err := v.Snippets(); !errors.Is(err, ErrLocked) {
+		t.Fatalf("expected ErrLocked, got %v", err)
+	}
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+
+	a, err := v.PutSnippet(Snippet{Title: "  Disk usage ", Code: "df -h\r\ndu -sh /var/log/*\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := v.PutSnippet(Snippet{Title: "Logs", Code: "tail -f /var/log/syslog"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := v.Snippets()
+	if len(got) != 2 || got[0].ID != b || got[1].ID != a {
+		t.Fatalf("newest must come first: %+v", got)
+	}
+	if got[1].Title != "Disk usage" || got[1].Code != "df -h\ndu -sh /var/log/*" {
+		t.Fatalf("title/code were not cleaned up: %+v", got[1])
+	}
+
+	// Editing keeps the position.
+	if _, err := v.PutSnippet(Snippet{ID: a, Title: "Disk", Code: "df -h"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = v.Snippets(); got[1].ID != a || got[1].Title != "Disk" {
+		t.Fatalf("edit moved or lost the snippet: %+v", got)
+	}
+
+	// Validation.
+	bad := []Snippet{
+		{Title: "", Code: "x"},
+		{Title: "x", Code: "   "},
+		{Title: strings.Repeat("a", MaxSnippetTitle+1), Code: "x"},
+		{Title: "x", Code: strings.Repeat("a", MaxSnippetCode+1)},
+	}
+	for i, s := range bad {
+		if _, err := v.PutSnippet(s); err == nil {
+			t.Errorf("bad snippet %d was accepted", i)
+		}
+	}
+	if _, err := v.PutSnippet(Snippet{ID: "nope", Title: "x", Code: "y"}); !errors.Is(err, ErrSnippetNotFound) {
+		t.Fatalf("expected ErrSnippetNotFound, got %v", err)
+	}
+
+	// Survives a lock, and is encrypted on disk.
+	v.Lock()
+	if err := v.Unlock(pw); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = v.Snippets(); len(got) != 2 || got[1].Code != "df -h" {
+		t.Fatalf("snippets did not survive a lock/unlock: %+v", got)
+	}
+	raw, _ := os.ReadFile(path)
+	if bytes.Contains(raw, []byte("tail -f")) {
+		t.Fatal("snippet text leaked into the vault file")
+	}
+
+	if err := v.DeleteSnippet(b); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = v.Snippets(); len(got) != 1 {
+		t.Fatalf("expected 1 snippet, got %d", len(got))
+	}
+	if err := v.DeleteSnippet(b); !errors.Is(err, ErrSnippetNotFound) {
+		t.Fatalf("expected ErrSnippetNotFound, got %v", err)
+	}
+}

@@ -179,3 +179,24 @@ export namespace settings {
 
 }
 
+export namespace vault {
+	
+	export class Snippet {
+	    id: string;
+	    title: string;
+	    code: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snippet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.code = source["code"];
+	    }
+	}
+
+}
+

@@ -57,8 +57,22 @@ type Host struct {
 	LastUsed   int64    `json:"lastUsed,omitempty"` // unix seconds of the last successful connection
 }
 
+type Snippet struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Code  string `json:"code"`
+}
+
+const (
+	MaxSnippetTitle = 80
+	MaxSnippetCode  = 20000
+)
+
+var ErrSnippetNotFound = errors.New("snippet not found")
+
 type data struct {
-	Hosts []Host `json:"hosts"`
+	Hosts    []Host    `json:"hosts"`
+	Snippets []Snippet `json:"snippets,omitempty"`
 }
 
 type kdfParams struct {
@@ -356,6 +370,77 @@ func (v *Vault) Delete(id string) error {
 	}
 	v.data.Hosts = append(v.data.Hosts[:i], v.data.Hosts[i+1:]...)
 	return v.save()
+}
+
+// ---- Snippets ----
+
+// Snippets returns the saved snippets, newest first.
+func (v *Vault) Snippets() ([]Snippet, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.key == nil {
+		return nil, ErrLocked
+	}
+	out := make([]Snippet, len(v.data.Snippets)) // never nil, so the UI gets [] not null
+	copy(out, v.data.Snippets)
+	return out, nil
+}
+
+// PutSnippet adds a snippet (empty ID, goes to the top) or replaces an
+// existing one in place, and returns its ID.
+func (v *Vault) PutSnippet(s Snippet) (string, error) {
+	s.Title = strings.TrimSpace(s.Title)
+	s.Code = strings.TrimSpace(strings.ReplaceAll(s.Code, "\r\n", "\n"))
+	switch {
+	case s.Title == "":
+		return "", errors.New("give the snippet a name")
+	case s.Code == "":
+		return "", errors.New("enter a command or some code")
+	case len([]rune(s.Title)) > MaxSnippetTitle:
+		return "", fmt.Errorf("the name can be at most %d characters", MaxSnippetTitle)
+	case len([]rune(s.Code)) > MaxSnippetCode:
+		return "", fmt.Errorf("a snippet can be at most %d characters", MaxSnippetCode)
+	}
+
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.key == nil {
+		return "", ErrLocked
+	}
+	if s.ID == "" {
+		s.ID = newID()
+		v.data.Snippets = append([]Snippet{s}, v.data.Snippets...)
+	} else {
+		i := v.snippetIndex(s.ID)
+		if i < 0 {
+			return "", ErrSnippetNotFound
+		}
+		v.data.Snippets[i] = s
+	}
+	return s.ID, v.save()
+}
+
+func (v *Vault) DeleteSnippet(id string) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.key == nil {
+		return ErrLocked
+	}
+	i := v.snippetIndex(id)
+	if i < 0 {
+		return ErrSnippetNotFound
+	}
+	v.data.Snippets = append(v.data.Snippets[:i], v.data.Snippets[i+1:]...)
+	return v.save()
+}
+
+func (v *Vault) snippetIndex(id string) int {
+	for i := range v.data.Snippets {
+		if v.data.Snippets[i].ID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 // ---- internals (callers must hold v.mu) ----

@@ -96,6 +96,10 @@
     fit = f;
     cols = t.cols;
     rows = t.rows;
+    tabs.register(tab.id, {
+      paste: (text) => t.paste(text),
+      focus: () => t.focus(),
+    });
 
     t.onData((d) => {
       if (tab.status === "connected") api.write(sid, d).catch(() => {});
@@ -191,6 +195,7 @@
   });
 
   onDestroy(() => {
+    tabs.unregister(tab.id)
     disposed = true;
     dropListeners();
     if (sid) api.disconnect(sid);

@@ -61,3 +61,9 @@ export interface ImportPreview {
 export interface ConnectInfo {
   hostKeyType: string;
 }
+
+export interface Snippet {
+  id: string;
+  title: string;
+  code: string;
+}

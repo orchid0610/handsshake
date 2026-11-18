@@ -7,6 +7,7 @@ import type {
   Settings,
   ImportPreview,
   ConnectInfo,
+  Snippet,
 } from "./types";
 
 /** Wails rejects with a plain string; turn anything into readable text. */
@@ -47,6 +48,10 @@ export const api = {
     Go.PreviewSSHConfig(path) as unknown as Promise<ImportPreview>,
   importHosts: (path: string, aliases: string[], copyKeys: boolean) =>
     Go.ImportHosts(path, aliases, copyKeys),
+  listSnippets: () => Go.ListSnippets() as unknown as Promise<Snippet[]>,
+  saveSnippet: (id: string, title: string, code: string) =>
+    Go.SaveSnippet(id, title, code),
+  deleteSnippet: (id: string) => Go.DeleteSnippet(id),
 };
 
 export const events = { on: EventsOn };
