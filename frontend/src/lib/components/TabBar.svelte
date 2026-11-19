@@ -15,9 +15,9 @@
     error: "Connection failed",
   };
 
-  let addEl: HTMLDivElement | undefined;
-  let menuEl: HTMLDivElement | undefined;
-  let filterEl: HTMLInputElement | undefined;
+  let addEl = $state<HTMLDivElement>();
+  let menuEl = $state<HTMLDivElement>();
+  let filterEl = $state<HTMLInputElement>();
   let filter = $state("");
   let cursor = $state(0);
 

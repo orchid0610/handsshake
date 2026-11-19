@@ -4,8 +4,8 @@
   import { snippets } from "../stores/snippets.svelte";
   import Icon from "./Icon.svelte";
 
-  let searchEl: HTMLInputElement | undefined;
-  let titleEl: HTMLInputElement | undefined;
+  let searchEl = $state<HTMLDivElement>();
+  let titleEl = $state<HTMLDivElement>();
 
   // Put the cursor in the right field when the drawer or its form opens.
   $effect(() => {
@@ -15,8 +15,7 @@
   });
 
   function onKey(e: KeyboardEvent) {
-    if (e.key !== "Escape" || app.confirm) return; // a confirm dialog gets the first Escape
-    e.stopPropagation();
+    if (!snippets.open || e.key !== "Escape" || app.confirm) return; // a confirm dialog gets the first Escape
     if (snippets.form) snippets.cancelForm();
     else snippets.close();
   }
@@ -31,6 +30,8 @@
   const lineCount = (code: string) => code.split("\n").length;
 </script>
 
+<svelte:window onkeydown={onKey} />
+
 {#if snippets.open}
   <button
     class="scrim"
@@ -39,12 +40,7 @@
     onclick={() => snippets.close()}
   ></button>
 
-  <aside
-    class="drawer"
-    id="snippets-drawer"
-    aria-label="Saved snippets"
-    onkeydown={onKey}
-  >
+  <aside class="drawer" id="snippets-drawer" aria-label="Saved snippets">
     <header>
       <div class="who">
         <span class="hicon"><Icon name="code" size={16} /></span>
