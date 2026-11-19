@@ -20,6 +20,7 @@ export type Tab = {
 export type TermHandle = {
   paste: (text: string) => void;
   focus: () => void;
+  find: () => void
 };
 
 class TabStore {

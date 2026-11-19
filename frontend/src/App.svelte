@@ -18,6 +18,7 @@
   import SettingsPage from "./lib/pages/SettingsPage.svelte";
   import { snippets } from "./lib/stores/snippets.svelte";
   import SnippetsDrawer from "./lib/components/SnippetsDrawer.svelte";
+  import KeysPage from './lib/pages/KeysPage.svelte'
 
   onMount(() => {
     settings.load(); // settings hold no secrets, so this works while the vault is locked
@@ -80,6 +81,9 @@
     if (app.gated) return;
     const mod = e.ctrlKey || e.metaKey;
     const snippetKey = mod && e.shiftKey && e.code === "KeyS";
+    const findKey =
+      (e.ctrlKey && e.shiftKey && e.code === "KeyF") ||
+      (e.metaKey && !e.shiftKey && e.code === "KeyF");
     const newTab =
       (e.ctrlKey && e.shiftKey && e.code === "KeyT") ||
       (e.metaKey && !e.shiftKey && e.code === "KeyT");
@@ -91,6 +95,11 @@
       e.preventDefault();
       e.stopPropagation();
       if (app.page === "terminal") snippets.toggle();
+    } else if (findKey && app.page === "terminal" && tabs.activeId) {
+      e.preventDefault();
+      e.stopPropagation();
+      snippets.open = false;
+      tabs.handles.get(tabs.activeId)?.find();
     } else if (newTab) {
       e.preventDefault();
       e.stopPropagation();
@@ -167,14 +176,7 @@
         />
       </section>
     {:else if app.page === "keys"}
-      <section class="page glow">
-        <EmptyPage
-          icon="key"
-          eyebrow="Authentication"
-          title="Keys"
-          text="Your SSH keys and identities will appear here."
-        />
-      </section>
+      <section class="page glow"><KeysPage /></section>
     {/if}
   </main>
 </div>

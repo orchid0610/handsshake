@@ -67,3 +67,15 @@ export interface Snippet {
   title: string;
   code: string;
 }
+
+export interface KeyInfo {
+  id: string
+  name: string
+  source: 'file' | 'vault'
+  path: string
+  type: string
+  fingerprint: string
+  encrypted: boolean
+  status: 'ok' | 'locked' | 'missing' | 'invalid'
+  usedBy: string[]
+}

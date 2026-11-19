@@ -31,6 +31,8 @@
     minus: '<path d="M5 12h14"/>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
+    up: '<path d="m18 15-6-6-6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
   } as const
 
   export type IconName = keyof typeof paths

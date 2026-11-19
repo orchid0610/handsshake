@@ -2,8 +2,10 @@
   import { onMount, onDestroy, tick } from "svelte";
   import { Terminal } from "@xterm/xterm";
   import { FitAddon } from "@xterm/addon-fit";
+  import { SearchAddon, type ISearchOptions } from "@xterm/addon-search";
   import "@xterm/xterm/css/xterm.css";
   import { api, events, errText } from "../api";
+  import { mix } from "../appTheme";
   import { app } from "../stores/app.svelte";
   import { settings } from "../stores/settings.svelte";
   import { tabs, type Tab } from "../stores/tabs.svelte";
@@ -14,6 +16,7 @@
   let el: HTMLDivElement;
   let term: Terminal | undefined;
   let fit: FitAddon | undefined;
+  let search: SearchAddon | undefined;
   let ro: ResizeObserver | undefined;
   let sid = ""; // id of the current backend session
   let attempt = 0;
@@ -24,9 +27,76 @@
   let rows = $state(24);
   let latency = $state<number | null>(null);
 
+  // ---- find bar ----
+  let findOpen = $state(false);
+  let findInput = $state<HTMLInputElement>();
+  let query = $state("");
+  let matchCase = $state(false);
+  let resultText = $state("");
+
   function dropListeners() {
     unsub.forEach((f) => f());
     unsub = [];
+  }
+
+  // The highlight colours come from the current theme (the addon wants #rrggbb).
+  function searchOptions(incremental: boolean): ISearchOptions {
+    const ui = settings.theme.ui;
+    return {
+      caseSensitive: matchCase,
+      incremental,
+      decorations: {
+        matchBackground: mix(ui.background, ui.accent, 0.3),
+        matchBorder: mix(ui.background, ui.accent, 0.45),
+        matchOverviewRuler: ui.accent,
+        activeMatchBackground: mix(ui.background, ui.accent, 0.65),
+        activeMatchBorder: ui.accent,
+        activeMatchColorOverviewRuler: ui.path,
+      },
+    };
+  }
+
+  function runFind(incremental = false, backwards = false) {
+    if (!search || !term) return;
+    if (!query) {
+      search.clearDecorations();
+      term.clearSelection();
+      resultText = "";
+      return;
+    }
+    const found = backwards
+      ? search.findPrevious(query, searchOptions(false))
+      : search.findNext(query, searchOptions(incremental));
+    if (!found) resultText = "No results";
+  }
+
+  async function openFind() {
+    // Start from whatever is selected, if it's a single reasonable line.
+    const sel = term?.getSelection() ?? "";
+    if (sel && !sel.includes("\n") && sel.length <= 200) query = sel;
+    findOpen = true;
+    await tick();
+    findInput?.focus();
+    findInput?.select();
+    if (query) runFind(true);
+  }
+
+  function closeFind() {
+    findOpen = false;
+    search?.clearDecorations();
+    term?.clearSelection();
+    resultText = "";
+    term?.focus();
+  }
+
+  function onFindKey(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeFind();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      runFind(false, e.shiftKey);
+    }
   }
 
   async function start() {
@@ -90,6 +160,19 @@
     });
     const f = new FitAddon();
     t.loadAddon(f);
+
+    const sa = new SearchAddon();
+    t.loadAddon(sa);
+    sa.onDidChangeResults(({ resultIndex, resultCount }) => {
+      resultText =
+        resultCount === 0
+          ? "No results"
+          : resultIndex < 0
+            ? `${resultCount}+`
+            : `${resultIndex + 1} of ${resultCount}`;
+    });
+    search = sa;
+
     t.open(el);
     f.fit();
     term = t;
@@ -99,6 +182,7 @@
     tabs.register(tab.id, {
       paste: (text) => t.paste(text),
       focus: () => t.focus(),
+      find: openFind,
     });
 
     t.onData((d) => {
@@ -169,7 +253,7 @@
     if (active && term) {
       tick().then(() => {
         fit?.fit();
-        term?.focus();
+        if (!findOpen) term?.focus();
       });
     }
   });
@@ -195,7 +279,7 @@
   });
 
   onDestroy(() => {
-    tabs.unregister(tab.id)
+    tabs.unregister(tab.id);
     disposed = true;
     dropListeners();
     if (sid) api.disconnect(sid);
@@ -209,6 +293,54 @@
   <div class="wrap" class:compact={settings.value.compactSpacing}>
     <div class="term" bind:this={el}></div>
   </div>
+
+  {#if findOpen}
+    <div class="find" role="search">
+      <Icon name="search" size={14} />
+      <input
+        bind:this={findInput}
+        bind:value={query}
+        oninput={() => runFind(true)}
+        onkeydown={onFindKey}
+        placeholder="Find in terminal"
+        aria-label="Find in terminal"
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <span class="count" class:none={resultText === "No results"}
+        >{resultText}</span
+      >
+      <button
+        class="fbtn"
+        class:on={matchCase}
+        aria-pressed={matchCase}
+        title="Match case"
+        onclick={() => {
+          matchCase = !matchCase;
+          runFind(true);
+        }}>Aa</button
+      >
+      <button
+        class="fbtn"
+        title="Previous match (Shift+Enter)"
+        aria-label="Previous match"
+        onclick={() => runFind(false, true)}
+        ><Icon name="up" size={14} /></button
+      >
+      <button
+        class="fbtn"
+        title="Next match (Enter)"
+        aria-label="Next match"
+        onclick={() => runFind()}><Icon name="down" size={14} /></button
+      >
+      <button
+        class="fbtn"
+        title="Close (Esc)"
+        aria-label="Close search"
+        onclick={closeFind}><Icon name="x" size={14} /></button
+      >
+    </div>
+  {/if}
 
   {#if settings.value.showStatusBar}
     <footer class="status">
@@ -271,6 +403,77 @@
   .term {
     width: 100%;
     height: 100%;
+  }
+
+  /* Below the snippets drawer (z-index 3 and 4), above the terminal. */
+  .find {
+    position: absolute;
+    top: 10px;
+    right: 18px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 6px 0 11px;
+    color: var(--text-faint);
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    animation: drop 0.14s ease;
+  }
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  .find input {
+    width: 190px;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+  }
+  .find input::placeholder {
+    color: var(--text-faint);
+  }
+  .count {
+    min-width: 58px;
+    text-align: right;
+    font: 11px var(--font-mono);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .count.none {
+    color: var(--danger);
+  }
+  .fbtn {
+    display: grid;
+    place-items: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-dim);
+    font: 600 11px var(--font-ui);
+    transition:
+      background 0.12s,
+      color 0.12s;
+  }
+  .fbtn:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+  .fbtn.on {
+    background: var(--accent-soft);
+    color: var(--accent-text);
   }
 
   .status {

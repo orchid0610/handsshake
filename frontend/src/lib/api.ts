@@ -8,6 +8,7 @@ import type {
   ImportPreview,
   ConnectInfo,
   Snippet,
+  KeyInfo,
 } from "./types";
 
 /** Wails rejects with a plain string; turn anything into readable text. */
@@ -52,6 +53,7 @@ export const api = {
   saveSnippet: (id: string, title: string, code: string) =>
     Go.SaveSnippet(id, title, code),
   deleteSnippet: (id: string) => Go.DeleteSnippet(id),
+  listKeys: () => Go.ListKeys() as unknown as Promise<KeyInfo[]>,
 };
 
 export const events = { on: EventsOn };

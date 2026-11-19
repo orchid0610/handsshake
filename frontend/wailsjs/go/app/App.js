@@ -50,6 +50,10 @@ export function ListHosts() {
   return window['go']['app']['App']['ListHosts']();
 }
 
+export function ListKeys() {
+  return window['go']['app']['App']['ListKeys']();
+}
+
 export function ListSnippets() {
   return window['go']['app']['App']['ListSnippets']();
 }

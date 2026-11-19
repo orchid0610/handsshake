@@ -144,6 +144,39 @@ export namespace hostimport {
 
 }
 
+export namespace keyinfo {
+	
+	export class Key {
+	    id: string;
+	    name: string;
+	    source: string;
+	    path: string;
+	    type: string;
+	    fingerprint: string;
+	    encrypted: boolean;
+	    status: string;
+	    usedBy: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Key(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.source = source["source"];
+	        this.path = source["path"];
+	        this.type = source["type"];
+	        this.fingerprint = source["fingerprint"];
+	        this.encrypted = source["encrypted"];
+	        this.status = source["status"];
+	        this.usedBy = source["usedBy"];
+	    }
+	}
+
+}
+
 export namespace settings {
 	
 	export class Settings {
