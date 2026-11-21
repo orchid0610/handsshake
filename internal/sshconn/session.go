@@ -110,11 +110,7 @@ func (c *Conn) OpenShell(cols, rows int) (*Shell, error) {
 	if err != nil {
 		return nil, err
 	}
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-	}
+	modes := ptyModes()
 	fail := func(err error) (*Shell, error) { s.Close(); return nil, err }
 
 	if err := s.RequestPty("xterm-256color", rows, cols, modes); err != nil {
@@ -132,6 +128,19 @@ func (c *Conn) OpenShell(cols, rows int) (*Shell, error) {
 		return fail(err)
 	}
 	return &Shell{session: s, stdin: stdin, stdout: stdout}, nil
+}
+
+// ptyModes are the terminal modes requested for every shell. Flow control is
+// turned off so Ctrl+S reaches the shell (forward history search) instead of
+// freezing the session until Ctrl+Q.
+func ptyModes() ssh.TerminalModes {
+	return ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.IXON:          0,
+		ssh.IXOFF:         0,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
 }
 
 func (s *Shell) Read(p []byte) (int, error)  { return s.stdout.Read(p) }

@@ -107,3 +107,12 @@ func TestKnownHosts(t *testing.T) {
 		t.Fatal("a changed key must not trigger a trust prompt")
 	}
 }
+
+func TestPtyModesDisableFlowControl(t *testing.T) {
+	modes := ptyModes()
+	for name, op := range map[string]uint8{"IXON": ssh.IXON, "IXOFF": ssh.IXOFF} {
+		if v, ok := modes[op]; !ok || v != 0 {
+			t.Errorf("%s must be explicitly requested as 0, got %v (present: %v)", name, v, ok)
+		}
+	}
+}
