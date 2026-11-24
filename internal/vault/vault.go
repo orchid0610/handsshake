@@ -55,6 +55,7 @@ type Host struct {
 	OSLike     string   `json:"osLike,omitempty"`   // related families, e.g. "debian"
 	OSName     string   `json:"osName,omitempty"`   // e.g. "Ubuntu 24.04.3 LTS"
 	LastUsed   int64    `json:"lastUsed,omitempty"` // unix seconds of the last successful connection
+	JumpHostID string   `json:"jumpHostId,omitempty"`
 }
 
 type Snippet struct {
@@ -340,6 +341,9 @@ func (v *Vault) Update(id string, fn func(*Host)) error {
 }
 
 // AddMany adds several new hosts (any IDs are replaced) and saves once.
+// AddMany adds several new hosts and saves once. An empty ID gets a new one;
+// an ID you set is kept (so imported hosts can refer to each other), but must
+// not already exist.
 func (v *Vault) AddMany(hosts []Host) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -347,8 +351,19 @@ func (v *Vault) AddMany(hosts []Host) error {
 		return ErrLocked
 	}
 	before := len(v.data.Hosts)
+	taken := make(map[string]bool, before+len(hosts))
+	for _, h := range v.data.Hosts {
+		taken[h.ID] = true
+	}
 	for _, h := range hosts {
-		h.ID = newID()
+		if h.ID == "" {
+			h.ID = newID()
+		}
+		if taken[h.ID] {
+			v.data.Hosts = v.data.Hosts[:before]
+			return fmt.Errorf("a host with id %q already exists", h.ID)
+		}
+		taken[h.ID] = true
 		v.data.Hosts = append(v.data.Hosts, h)
 	}
 	if err := v.save(); err != nil {
@@ -369,6 +384,11 @@ func (v *Vault) Delete(id string) error {
 		return ErrNotFound
 	}
 	v.data.Hosts = append(v.data.Hosts[:i], v.data.Hosts[i+1:]...)
+	for j := range v.data.Hosts { // anyone who jumped through it now connects directly
+		if v.data.Hosts[j].JumpHostID == id {
+			v.data.Hosts[j].JumpHostID = ""
+		}
+	}
 	return v.save()
 }
 
@@ -609,6 +629,8 @@ func newID() string {
 	b, _ := randomBytes(8)
 	return hex.EncodeToString(b)
 }
+
+func NewID() string { return newID() }
 
 func wipe(b []byte) {
 	for i := range b {

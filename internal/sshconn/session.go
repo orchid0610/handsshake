@@ -2,6 +2,7 @@ package sshconn
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -17,61 +18,162 @@ type Config struct {
 	Creds   Credentials
 	HostKey ssh.HostKeyCallback // REQUIRED: there is deliberately no insecure default
 	Timeout time.Duration       // default 10s
+
+	// Via, if set, is an open connection to a jump host: the new connection is
+	// tunnelled through it. Dial takes ownership of Via: it is closed when the
+	// new connection is closed, or at once if Dial fails.
+	Via *Conn
 }
 
 // Conn is an authenticated connection. Shells (and later SFTP) are
 // channels opened on top of it.
 type Conn struct {
 	client      *ssh.Client
+	via         *Conn // the jump host this connection runs through, if any
 	done        chan struct{}
 	once        sync.Once
-	hostKeyType string
+	hostKeyType string // e.g. "ssh-ed25519": the key the server proved its identity with
 }
 
 func Dial(cfg Config) (*Conn, error) {
+	fail := func(err error) (*Conn, error) {
+		if cfg.Via != nil {
+			cfg.Via.Close()
+		}
+		return nil, err
+	}
+
 	if cfg.HostKey == nil {
-		return nil, errors.New("sshconn: a HostKey callback is required")
+		return fail(errors.New("sshconn: a HostKey callback is required"))
 	}
 	methods, err := cfg.Creds.authMethods()
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	timeout := cfg.Timeout
 	if timeout == 0 {
 		timeout = 10 * time.Second
 	}
+	addr := withDefaultPort(cfg.Address)
 
-	// Remember what the host key check said: ssh wraps it in a generic
-	// "handshake failed" error, and we want to show the real reason.
-	// Remember what the host key check said: ssh wraps it in a generic
-	// "handshake failed" error, and we want to show the real reason.
-	var hostErr error
-	var keyType string
+	nc, err := openTransport(cfg.Via, addr, timeout)
+	if err != nil {
+		return fail(err)
+	}
+
+	// The handshake gets `timeout` to finish, but the clock stops while the
+	// user is deciding whether to trust a new host key.
+	var (
+		mu       sync.Mutex
+		timedOut bool
+		hostErr  error
+		keyType  string
+	)
+	timer := time.AfterFunc(timeout, func() {
+		mu.Lock()
+		timedOut = true
+		mu.Unlock()
+		nc.Close() // unblocks the handshake
+	})
+
 	sc := &ssh.ClientConfig{
 		User: cfg.User,
 		Auth: methods,
 		HostKeyCallback: func(h string, r net.Addr, k ssh.PublicKey) error {
-			keyType = k.Type()
-			hostErr = cfg.HostKey(h, r, k)
-			return hostErr
+			timer.Stop()
+			err := cfg.HostKey(h, r, k)
+			mu.Lock()
+			keyType, hostErr = k.Type(), err
+			mu.Unlock()
+			timer.Reset(timeout)
+			return err
 		},
-		Timeout: timeout,
 	}
 
-	client, err := ssh.Dial("tcp", withDefaultPort(cfg.Address), sc)
+	conn, chans, reqs, err := ssh.NewClientConn(nc, addr, sc)
+	timer.Stop()
+	mu.Lock()
+	to, he, kt := timedOut, hostErr, keyType
+	mu.Unlock()
+
 	if err != nil {
-		if hostErr != nil {
-			return nil, hostErr
+		nc.Close()
+		// ssh wraps the real reason in a generic "handshake failed"; show the real one.
+		switch {
+		case he != nil:
+			return fail(he)
+		case to:
+			return fail(errors.New("the server did not complete the SSH handshake in time"))
+		case strings.Contains(err.Error(), "unable to authenticate"):
+			return fail(ErrAuthFailed)
+		default:
+			return fail(err)
 		}
-		if strings.Contains(err.Error(), "unable to authenticate") {
-			return nil, ErrAuthFailed
-		}
-		return nil, err
 	}
 
-	c := &Conn{client: client, done: make(chan struct{}), hostKeyType: keyType}
+	c := &Conn{
+		client:      ssh.NewClient(conn, chans, reqs),
+		via:         cfg.Via,
+		done:        make(chan struct{}),
+		hostKeyType: kt,
+	}
 	go c.keepAlive(30 * time.Second)
 	return c, nil
+}
+
+// openTransport opens the raw connection to addr: directly, or as a channel
+// through a jump host.
+func openTransport(via *Conn, addr string, timeout time.Duration) (net.Conn, error) {
+	if via == nil {
+		return net.DialTimeout("tcp", addr, timeout)
+	}
+
+	type result struct {
+		nc  net.Conn
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		nc, err := via.client.Dial("tcp", addr)
+		done <- result{nc, err}
+	}()
+
+	select {
+	case r := <-done:
+		if r.err != nil {
+			return nil, fmt.Errorf("the jump host could not reach %s: %w", addr, r.err)
+		}
+		return r.nc, nil
+	case <-time.After(timeout):
+		go func() { // don't leak the channel if it opens after all
+			if r := <-done; r.nc != nil {
+				r.nc.Close()
+			}
+		}()
+		return nil, fmt.Errorf("the jump host did not answer for %s in time", addr)
+	}
+}
+
+// HostKeyType is the key algorithm the server identified itself with.
+func (c *Conn) HostKeyType() string { return c.hostKeyType }
+
+// Ping measures one round trip to the server using an SSH keepalive request.
+func (c *Conn) Ping() (time.Duration, error) {
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			return 0, err
+		}
+		return time.Since(start), nil
+	case <-time.After(5 * time.Second):
+		return 0, errors.New("timed out")
+	}
 }
 
 // keepAlive pings the server so dead connections (Wi-Fi dropped, laptop
@@ -92,9 +194,14 @@ func (c *Conn) keepAlive(every time.Duration) {
 	}
 }
 
+// Close closes this connection and, after it, the jump host it ran through.
 func (c *Conn) Close() error {
 	c.once.Do(func() { close(c.done) })
-	return c.client.Close()
+	err := c.client.Close()
+	if c.via != nil {
+		c.via.Close()
+	}
+	return err
 }
 
 // Shell is an interactive terminal on the server. Read returns what the
@@ -110,10 +217,9 @@ func (c *Conn) OpenShell(cols, rows int) (*Shell, error) {
 	if err != nil {
 		return nil, err
 	}
-	modes := ptyModes()
 	fail := func(err error) (*Shell, error) { s.Close(); return nil, err }
 
-	if err := s.RequestPty("xterm-256color", rows, cols, modes); err != nil {
+	if err := s.RequestPty("xterm-256color", rows, cols, ptyModes()); err != nil {
 		return fail(err)
 	}
 	stdin, err := s.StdinPipe()
@@ -153,26 +259,4 @@ func withDefaultPort(addr string) string {
 		return addr
 	}
 	return net.JoinHostPort(strings.Trim(addr, "[]"), "22")
-}
-
-// HostKeyType is the key algorithm the server identified itself with.
-func (c *Conn) HostKeyType() string { return c.hostKeyType }
-
-// Ping measures one round trip to the server using an SSH keepalive request.
-func (c *Conn) Ping() (time.Duration, error) {
-	start := time.Now()
-	done := make(chan error, 1)
-	go func() {
-		_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			return 0, err
-		}
-		return time.Since(start), nil
-	case <-time.After(5 * time.Second):
-		return 0, errors.New("timed out")
-	}
 }
