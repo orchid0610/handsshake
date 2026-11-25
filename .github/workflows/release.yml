@@ -54,8 +54,9 @@ jobs:
         run: |
           mkdir -p dist stage
           cp build/bin/handsshake LICENSE README.md stage/
-          tar -czf "dist/handsshake-${GITHUB_REF_NAME}-linux-amd64.tar.gz" -C stage .
+          tar -czf dist/handsshake-linux-amd64.tar.gz -C stage .
           VERSION="${GITHUB_REF_NAME#v}" nfpm package -p deb -f nfpm.yaml -t dist/
+          mv dist/*.deb dist/handsshake-linux-amd64.deb
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -79,16 +80,15 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
       - name: Build (universal, Apple Silicon + Intel)
         run: wails build -clean -platform darwin/universal
-      - name: Ad-hoc sign and package as a DMG
+      - name: Ad-hoc sign and package as a zip
         run: |
           APP=$(ls -d build/bin/*.app | head -n 1)
-          echo "Built: $APP"
-          codesign --force --deep --sign - "$APP"
-          mkdir -p dist stage
-          cp -R "$APP" stage/
-          ln -s /Applications stage/Applications
-          hdiutil create -volname "HandSSHake" -srcfolder stage -ov -format UDZO \
-            "dist/handsshake-${GITHUB_REF_NAME}-macos-universal.dmg"
+          if [ "$APP" != "build/bin/HandSSHake.app" ]; then
+            mv "$APP" build/bin/HandSSHake.app
+          fi
+          codesign --force --deep --sign - build/bin/HandSSHake.app
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/bin/HandSSHake.app dist/handsshake-macos-universal.zip
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -105,6 +105,12 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Check the asset names the installer relies on
+        run: |
+          cd dist
+          for f in handsshake-linux-amd64.deb handsshake-linux-amd64.tar.gz handsshake-macos-universal.zip; do
+            test -f "$f" || { echo "missing release asset: $f"; exit 1; }
+          done
       - name: Checksums
         run: cd dist && sha256sum * > SHA256SUMS.txt
       - name: Create draft release
