@@ -38,10 +38,24 @@
     }
   });
 
+  const jumpName = (h: HostInfo) =>
+    h.jumpHostId
+      ? (app.hosts.find((x) => x.id === h.jumpHostId)?.name ?? "")
+      : "";
+  const meta = (h: HostInfo) =>
+    [h.osName || h.user, jumpName(h) && `via ${jumpName(h)}`]
+      .filter(Boolean)
+      .join(" · ");
+
   function askDelete(h: HostInfo) {
+    const users = app.hosts.filter((x) => x.jumpHostId === h.id).length;
     app.confirm = {
       title: "Delete host?",
-      message: `“${h.name}” and its saved credentials will be permanently removed from your vault.`,
+      message:
+        `“${h.name}” and its saved credentials will be permanently removed from your vault.` +
+        (users > 0
+          ? ` ${users} other host${users === 1 ? "" : "s"} connect${users === 1 ? "s" : ""} through it and will connect directly instead.`
+          : ""),
       action: "Delete",
       run: async () => {
         try {
@@ -154,7 +168,7 @@
                   <small>{h.user}@{h.address}</small>
                 </span>
                 <span class="meta">
-                  <span class="os">{h.osName || h.user}</span>
+                  <span class="os">{meta(h)}</span>
                   <span class="go"
                     >Connect <Icon name="chevron" size={13} /></span
                   >
@@ -424,10 +438,9 @@
   }
   .row {
     display: grid;
-    grid-template-columns: 32px minmax(150px, 1.5fr) minmax(80px, 1fr) minmax(
-        100px,
-        0.8fr
-      ) 16px;
+    grid-template-columns:
+      32px minmax(150px, 1.5fr) minmax(80px, 1fr) minmax(100px, 0.8fr)
+      16px;
     align-items: center;
     gap: 12px;
     width: 100%;

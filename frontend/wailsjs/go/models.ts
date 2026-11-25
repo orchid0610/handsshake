@@ -26,6 +26,7 @@ export namespace app {
 	    osLike: string;
 	    osName: string;
 	    lastUsed: number;
+	    jumpHostId: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HostInfo(source);
@@ -46,6 +47,7 @@ export namespace app {
 	        this.osLike = source["osLike"];
 	        this.osName = source["osName"];
 	        this.lastUsed = source["lastUsed"];
+	        this.jumpHostId = source["jumpHostId"];
 	    }
 	}
 	export class HostInput {
@@ -59,6 +61,7 @@ export namespace app {
 	    importKey: boolean;
 	    passphrase: string;
 	    clearPassphrase: boolean;
+	    jumpHostId: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HostInput(source);
@@ -76,6 +79,7 @@ export namespace app {
 	        this.importKey = source["importKey"];
 	        this.passphrase = source["passphrase"];
 	        this.clearPassphrase = source["clearPassphrase"];
+	        this.jumpHostId = source["jumpHostId"];
 	    }
 	}
 

@@ -26,6 +26,10 @@ type ConnectInfo struct {
 // start listening for output events BEFORE the first bytes arrive. If the
 // server is unknown, this call waits while the UI asks the user to verify
 // the fingerprint.
+// Connect opens a terminal for a saved host, going through its jump hosts
+// first if it has any. The UI chooses the id so it can start listening for
+// output events BEFORE the first bytes arrive. If a server is unknown, this
+// call waits while the UI asks the user to verify the fingerprint.
 func (a *App) Connect(id, hostID string, cols, rows int) (ConnectInfo, error) {
 	if cols < 1 || rows < 1 {
 		cols, rows = 80, 24
@@ -34,27 +38,16 @@ func (a *App) Connect(id, hostID string, cols, rows int) (ConnectInfo, error) {
 	if err != nil {
 		return ConnectInfo{}, err
 	}
-
-	var creds sshconn.Credentials
-	switch h.Auth {
-	case vault.AuthKey:
-		pem := []byte(h.PrivateKey)
-		if len(pem) == 0 {
-			if pem, err = os.ReadFile(expandHome(h.KeyPath)); err != nil {
-				return ConnectInfo{}, fmt.Errorf("cannot read the key file: %w", err)
-			}
-		}
-		creds = sshconn.Credentials{PrivateKey: pem, Passphrase: h.Passphrase}
-	default:
-		creds = sshconn.Credentials{Password: h.Password}
+	hosts, err := a.vault.Hosts()
+	if err != nil {
+		return ConnectInfo{}, err
+	}
+	chain, err := vault.JumpChain(hosts, h) // jump hosts first, the host itself last
+	if err != nil {
+		return ConnectInfo{}, err
 	}
 
-	conn, err := sshconn.Dial(sshconn.Config{
-		Address: h.Address,
-		User:    h.User,
-		Creds:   creds,
-		HostKey: a.known.Callback(a.askTrust),
-	})
+	conn, err := a.dialChain(chain)
 	if err != nil {
 		return ConnectInfo{}, err
 	}
@@ -202,4 +195,61 @@ func (a *App) detectOS(id, hostID string, conn *sshconn.Conn) {
 	_ = a.vault.Update(hostID, func(h *vault.Host) {
 		h.OS, h.OSLike, h.OSName = info.ID, info.Like, info.Name
 	})
+}
+
+// credentialsFor turns a saved host's login details into what sshconn needs.
+func credentialsFor(h vault.Host) (sshconn.Credentials, error) {
+	switch h.Auth {
+	case vault.AuthKey:
+		pem := []byte(h.PrivateKey)
+		if len(pem) == 0 {
+			var err error
+			if pem, err = os.ReadFile(expandHome(h.KeyPath)); err != nil {
+				return sshconn.Credentials{}, fmt.Errorf("cannot read the key file: %w", err)
+			}
+		}
+		return sshconn.Credentials{PrivateKey: pem, Passphrase: h.Passphrase}, nil
+	default:
+		return sshconn.Credentials{Password: h.Password}, nil
+	}
+}
+
+// dialChain connects through every host in the chain, in order. Each hop signs
+// in with its own credentials, and each host key is checked (and, if new,
+// confirmed by the user) separately.
+func (a *App) dialChain(chain []vault.Host) (*sshconn.Conn, error) {
+	var via *sshconn.Conn
+	for i, h := range chain {
+		creds, err := credentialsFor(h)
+		if err != nil {
+			if via != nil {
+				via.Close()
+			}
+			return nil, hopError(chain, i, err)
+		}
+		conn, err := sshconn.Dial(sshconn.Config{
+			Address: h.Address,
+			User:    h.User,
+			Creds:   creds,
+			HostKey: a.known.Callback(a.askTrust),
+			Via:     via, // Dial takes ownership of it, even when it fails
+		})
+		if err != nil {
+			return nil, hopError(chain, i, err)
+		}
+		via = conn
+	}
+	return via, nil
+}
+
+// hopError says which host in a chain failed. A direct connection keeps its plain error.
+func hopError(chain []vault.Host, i int, err error) error {
+	switch {
+	case len(chain) == 1:
+		return err
+	case i < len(chain)-1:
+		return fmt.Errorf("jump host “%s”: %w", chain[i].Name, err)
+	default:
+		return fmt.Errorf("“%s” (through “%s”): %w", chain[i].Name, chain[i-1].Name, err)
+	}
 }

@@ -22,10 +22,24 @@
     importKey: false,
     passphrase: "",
     clearPassphrase: false,
+    jumpHostId: host?.jumpHostId ?? "",
   });
   let showPw = $state(false);
   let busy = $state(false);
   let error = $state("");
+
+  // A host can't connect through itself, or through a host that (eventually) connects through it.
+  const byId = $derived(new Map(app.hosts.map((h) => [h.id, h])));
+  function loopsBack(candidateId: string): boolean {
+    if (!host) return false;
+    let cur = byId.get(candidateId);
+    for (let i = 0; cur && i < 10; i++) {
+      if (cur.id === host.id) return true;
+      cur = cur.jumpHostId ? byId.get(cur.jumpHostId) : undefined;
+    }
+    return false;
+  }
+  const choices = $derived(app.hosts.filter((h) => !loopsBack(h.id)));
 
   async function browse() {
     try {
@@ -70,6 +84,7 @@
         importKey: f.importKey,
         passphrase: f.passphrase,
         clearPassphrase: f.clearPassphrase,
+        jumpHostId: f.jumpHostId,
       });
       await app.refreshHosts();
       app.toast("success", host ? "Host updated" : "Host saved");
@@ -234,6 +249,24 @@
               the saved passphrase</label
             >
           {/if}
+        </div>
+      {/if}
+
+      {#if choices.length > 0}
+        <div class="field full">
+          <label for="jump"
+            >Connect through <span class="opt">(optional)</span></label
+          >
+          <select id="jump" class="input" bind:value={f.jumpHostId}>
+            <option value="">Connect directly</option>
+            {#each choices as h (h.id)}
+              <option value={h.id}>{h.name} · {h.user}@{h.address}</option>
+            {/each}
+          </select>
+          <span class="hint"
+            >Use another saved host as a jump host (bastion). It signs in first,
+            then reaches this server from there.</span
+          >
         </div>
       {/if}
     </div>

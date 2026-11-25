@@ -30,6 +30,7 @@ type HostInfo struct {
 	OSLike        string `json:"osLike"`
 	OSName        string `json:"osName"`
 	LastUsed      int64  `json:"lastUsed"`
+	JumpHostID    string `json:"jumpHostId"`
 }
 
 // HostInput is what the UI sends when saving. On edit, an empty secret
@@ -45,6 +46,7 @@ type HostInput struct {
 	ImportKey       bool   `json:"importKey"` // copy the key file's contents into the vault
 	Passphrase      string `json:"passphrase"`
 	ClearPassphrase bool   `json:"clearPassphrase"`
+	JumpHostID      string `json:"jumpHostId"`
 }
 
 func toInfo(h vault.Host) HostInfo {
@@ -55,6 +57,7 @@ func toInfo(h vault.Host) HostInfo {
 		HasPassphrase: h.Passphrase != "",
 		OS:            h.OS, OSLike: h.OSLike,
 		OSName: h.OSName, LastUsed: h.LastUsed,
+		JumpHostID: h.JumpHostID,
 	}
 }
 
@@ -83,11 +86,12 @@ func (a *App) GetHost(id string) (HostInfo, error) {
 
 func (a *App) SaveHost(in HostInput) (string, error) {
 	h := vault.Host{
-		ID:      in.ID,
-		Name:    strings.TrimSpace(in.Name),
-		Address: strings.TrimSpace(in.Address),
-		User:    strings.TrimSpace(in.User),
-		Auth:    vault.AuthType(in.Auth),
+		ID:         in.ID,
+		Name:       strings.TrimSpace(in.Name),
+		Address:    strings.TrimSpace(in.Address),
+		User:       strings.TrimSpace(in.User),
+		Auth:       vault.AuthType(in.Auth),
+		JumpHostID: strings.TrimSpace(in.JumpHostID),
 	}
 	switch {
 	case h.Name == "":
@@ -153,6 +157,21 @@ func (a *App) SaveHost(in HostInput) (string, error) {
 	default:
 		return "", errors.New("unknown authentication type")
 	}
+
+	if h.JumpHostID != "" {
+		hosts, err := a.vault.Hosts()
+		if err != nil {
+			return "", err
+		}
+		candidate := h
+		if candidate.ID == "" {
+			candidate.ID = "(new)" // a stand-in, so a host that isn't saved yet can be checked too
+		}
+		if _, err := vault.JumpChain(append(hosts, candidate), candidate); err != nil {
+			return "", err
+		}
+	}
+	
 	return a.vault.Put(h)
 }
 

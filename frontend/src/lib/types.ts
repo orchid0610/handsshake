@@ -14,6 +14,7 @@ export interface HostInfo {
   osLike: string;
   osName: string;
   lastUsed: number;
+  jumpHostId: string;
 }
 
 export interface HostInput {
@@ -27,6 +28,7 @@ export interface HostInput {
   importKey: boolean;
   passphrase: string;
   clearPassphrase: boolean;
+  jumpHostId: string;
 }
 
 export interface Settings {
@@ -69,13 +71,13 @@ export interface Snippet {
 }
 
 export interface KeyInfo {
-  id: string
-  name: string
-  source: 'file' | 'vault'
-  path: string
-  type: string
-  fingerprint: string
-  encrypted: boolean
-  status: 'ok' | 'locked' | 'missing' | 'invalid'
-  usedBy: string[]
+  id: string;
+  name: string;
+  source: "file" | "vault";
+  path: string;
+  type: string;
+  fingerprint: string;
+  encrypted: boolean;
+  status: "ok" | "locked" | "missing" | "invalid";
+  usedBy: string[];
 }
