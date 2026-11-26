@@ -155,6 +155,61 @@ install_linux() {
   say "It needs GTK 3 and WebKitGTK 4.1 (names vary: e.g. Fedora 'gtk3 webkit2gtk4.1', Arch 'gtk3 webkit2gtk-4.1')."
 }
 
+install_macos() {
+  # The release is a universal binary, so amd64 and arm64 are both fine here.
+  command -v ditto >/dev/null 2>&1 || die "this installer needs 'ditto' (included with macOS)"
+
+  download_verified handsshake-macos-universal.zip
+
+  # Prefer /Applications (writable for admin users, drwxrwxr-x root:admin).
+  # Fall back to ~/Applications for non-admin accounts instead of demanding sudo
+  # for a per-user GUI app.
+  local dest_dir
+  if [ -w "/Applications" ]; then
+    dest_dir="/Applications"
+  else
+    dest_dir="$HOME/Applications"
+  fi
+  local app_dest="$dest_dir/HandSSHake.app"
+
+  step "Installing to $app_dest"
+  run mkdir -p "$TMP/unpacked" "$dest_dir"
+
+  # ditto (not unzip) is the right tool for .app bundles: it preserves
+  # resource forks, metadata and the bundle layout codesign expects.
+  # The zip was made with `ditto -c -k --keepParent`, so the unpacked
+  # root contains HandSSHake.app directly.
+  run ditto -x -k "$TMP/handsshake-macos-universal.zip" "$TMP/unpacked"
+
+  if [ "$DRY" != 1 ] && [ ! -d "$TMP/unpacked/HandSSHake.app" ]; then
+    die "the download did not contain HandSSHake.app — the release asset may be corrupt."
+  fi
+
+  # Replace any previous copy.
+  if [ "$DRY" = 1 ]; then
+    say "[dry-run] rm -rf $app_dest"
+  elif [ -d "$app_dest" ]; then
+    rm -rf "$app_dest"
+  fi
+  run ditto "$TMP/unpacked/HandSSHake.app" "$app_dest"
+
+  # The app is only ad-hoc signed (see the release workflow), so a copy
+  # downloaded by a browser/curl carries quarantine and Gatekeeper would
+  # block the first launch. Strip it from our own verified download.
+  if [ "$DRY" = 1 ]; then
+    say "[dry-run] xattr -dr com.apple.quarantine $app_dest"
+  else
+    xattr -dr com.apple.quarantine "$app_dest" 2>/dev/null || true
+  fi
+
+  say ""
+  say "HandSSHake is installed at $app_dest"
+  say "Open it from Launchpad / $dest_dir, or run: open \"$app_dest\""
+  if [ "$dest_dir" != "/Applications" ]; then
+    say "Note: installed per-user because /Applications is not writable for this account."
+  fi
+}
+
 uninstall() {
   local removed=0
   case "$OS" in
@@ -170,11 +225,24 @@ uninstall() {
         removed=1
       fi
       ;;
+    Darwin)
+      local dir
+      for dir in "/Applications" "$HOME/Applications"; do
+        if [ -d "$dir/HandSSHake.app" ]; then
+          step "Removing $dir/HandSSHake.app"
+          run rm -rf "$dir/HandSSHake.app"
+          removed=1
+        fi
+      done
+      ;;
     *) die "uninstall is not supported on $OS yet" ;;
   esac
   [ "$removed" = 1 ] || say "HandSSHake does not seem to be installed."
   say "Your hosts, keys and settings were left alone. To remove them too, delete:"
-  say "  $HOME/.config/handsshake"
+  case "$OS" in
+    Darwin) say "  $HOME/Library/Application Support/handsshake" ;;
+    *)      say "  $HOME/.config/handsshake" ;;
+  esac
 }
 
 main() {
@@ -208,7 +276,7 @@ main() {
   step "HandSSHake ${VERSION} for ${OS} ${ARCH}"
   case "$OS" in
     Linux)  install_linux ;;
-    Darwin) die "macOS support is coming in the next installer update." ;;
+    Darwin) install_macos ;;
     *)      die "unsupported system: $OS" ;;
   esac
 }
